@@ -1,0 +1,6 @@
+ibapi==10.39.1
+matplotlib==3.10.8
+rookiepy==0.5.6
+scikit-learn==1.8.0
+tradingview-screener==3.1.0
+yfinance==1.2.0
