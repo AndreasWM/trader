@@ -261,6 +261,7 @@ class TV_Scanner:
 
         conditions = []
         if is_long:
+            cond_change_percent = Column('change') > 0
             ichi_lead1 = Column('close') > Column('Ichimoku.Lead1')
             ichi_lead2 = Column('close') > Column('Ichimoku.Lead2')
             ichi_lead1_60 = Column('close') > Column('Ichimoku.Lead1|60')
@@ -268,6 +269,7 @@ class TV_Scanner:
             ichi_lead1_240 = Column('close') > Column('Ichimoku.Lead1|240')
             ichi_lead2_240 = Column('close') > Column('Ichimoku.Lead2|240')
         else:
+            cond_change_percent = Column('change') < 0
             ichi_lead1 = Column('close') < Column('Ichimoku.Lead1')
             ichi_lead2 = Column('close') < Column('Ichimoku.Lead2')
             ichi_lead1_60 = Column('close') < Column('Ichimoku.Lead1|60')
@@ -280,6 +282,7 @@ class TV_Scanner:
             cond_typespec,
             cond_exchange,
             cond_market_cap,
+            cond_change_percent,
             ichi_lead1,
             ichi_lead2,
             ichi_lead1_60,
@@ -294,6 +297,7 @@ class TV_Scanner:
             .select(
                 'name',
                 'close',
+                'change',
                 'exchange',
                 'type',
                 'subtype',
