@@ -23,6 +23,7 @@ class Investor:
         self._ibkr = MarketOrder()
         self._util = StockUtil()
         self._number_of_stocks = 100
+        self._max_number_per_day = 10
         self._leverage = 2.0
         self._volatility = Volatility.HIGH
 
@@ -86,7 +87,7 @@ class Investor:
         scanner = TV_Scanner()
         tickers_to_exclude: list[str] = self._util.read_symbols(self._util.get_latest_watchlist_file()) + long_list + short_list
         if self._volatility == Volatility.HIGH:
-            limit = self._number_of_stocks - len(long_list+short_list)
+            limit = min(self._max_number_per_day, self._number_of_stocks - len(long_list+short_list))
             orders = self.buy_big_stocks(limit, scanner=scanner, tickers_to_exclude=tickers_to_exclude)
         else:
             orders = self.buy_performant_stocks(
