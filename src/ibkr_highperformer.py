@@ -22,9 +22,9 @@ class Investor:
     def __init__(self):
         self._ibkr = MarketOrder()
         self._util = StockUtil()
-        self._number_of_stocks = 100
-        self._max_number_per_day = 10
-        self._leverage = 2.0
+        self._number_of_stocks = 30
+        self._max_number_per_day = 3
+        self._leverage = 1.2
         self._volatility = Volatility.HIGH
 
     def get_capital(self) -> float:
