@@ -41,7 +41,7 @@ class MarketOrder(EClient, EWrapper):
 #        print(f"IB Host erkannt: {self._host}")
 #        self._port = "10.255.255.254"  # Default-Wert, wird in detect_ib_host überschrieben
 #        print(f"IB Port gesetzt auf: {self._port}")
-        self._port = 7497
+        self._port = 7496
         self._client_id = 100
 
         self._next_valid_id: Optional[OrderId] = None
