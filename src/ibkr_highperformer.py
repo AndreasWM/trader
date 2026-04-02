@@ -23,7 +23,7 @@ class Investor:
         self._ibkr = MarketOrder()
         self._util = StockUtil()
         self._number_of_stocks = 30
-        self._max_number_per_day = 3
+        self._max_number_per_day = 1
         self._leverage = 1.2
         self._volatility = Volatility.HIGH
 
@@ -85,7 +85,8 @@ class Investor:
         print(f"Anzahl Short-Positionen: {len(short_list)}")
 
         scanner = TV_Scanner()
-        tickers_to_exclude: list[str] = self._util.read_symbols(self._util.get_latest_watchlist_file()) + long_list + short_list
+        unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file())
+        tickers_to_exclude: list[str] = unwanted_tickers + long_list + short_list
         if self._volatility == Volatility.HIGH:
             limit = min(self._max_number_per_day, self._number_of_stocks - len(long_list+short_list))
             orders = self.buy_big_stocks(limit, scanner=scanner, tickers_to_exclude=tickers_to_exclude)
