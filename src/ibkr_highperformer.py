@@ -85,7 +85,7 @@ class Investor:
         print(f"Anzahl Short-Positionen: {len(short_list)}")
 
         scanner = TV_Scanner()
-        unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file())
+        unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
         tickers_to_exclude: list[str] = unwanted_tickers + long_list + short_list
         if self._volatility == Volatility.HIGH:
             limit = min(self._max_number_per_day, self._number_of_stocks - len(long_list+short_list))
