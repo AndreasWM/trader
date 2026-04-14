@@ -173,21 +173,23 @@ class TV_Scanner:
             if is_long:
                 cond_perf_Y = Column('Perf.Y') > 150
                 cond_perf_1M = Column('Perf.1M') > 0
-                ichi_lead1_1w = Column('close') > Column('Ichimoku.Lead1|1W')
-                ichi_lead2_1w = Column('close') > Column('Ichimoku.Lead2|1W')
                 ichi_lead1 = Column('close') > Column('Ichimoku.Lead1')
                 ichi_lead2 = Column('close') > Column('Ichimoku.Lead2')
-                ichi_lead1_lead2 = Column('Ichimoku.Lead1') > Column('Ichimoku.Lead2')
+                ichi_lead1_lead2_1w = Column('Ichimoku.Lead1|60') > Column('Ichimoku.Lead2|1W')
+                ichi_close_lead1_1w = Column('close') > Column('Ichimoku.Lead1|1W')
+                ichi_lead1_lead2_240 = Column('Ichimoku.Lead1|60') > Column('Ichimoku.Lead2|240')
+                ichi_close_lead1_240 = Column('close') > Column('Ichimoku.Lead1|240')
                 ichi_lead1_lead2_60 = Column('Ichimoku.Lead1|60') > Column('Ichimoku.Lead2|60')
                 ichi_close_lead1_60 = Column('close') > Column('Ichimoku.Lead1|60')
             else:
-                cond_perf_Y = Column('Perf.Y') < -20
+                cond_perf_Y = Column('Perf.Y') < -10
                 cond_perf_1M = Column('Perf.1M') < 0
-                ichi_lead1_1w = Column('close') < Column('Ichimoku.Lead1|1W')
-                ichi_lead2_1w = Column('close') < Column('Ichimoku.Lead2|1W')
                 ichi_lead1 = Column('close') < Column('Ichimoku.Lead1')
                 ichi_lead2 = Column('close') < Column('Ichimoku.Lead2')
-                ichi_lead1_lead2 = Column('Ichimoku.Lead1') < Column('Ichimoku.Lead2')
+                ichi_lead1_lead2_1w = Column('Ichimoku.Lead1|60') < Column('Ichimoku.Lead2|1W')
+                ichi_close_lead1_1w = Column('close') < Column('Ichimoku.Lead1|1W')
+                ichi_lead1_lead2_240 = Column('Ichimoku.Lead1|60') < Column('Ichimoku.Lead2|240')
+                ichi_close_lead1_240 = Column('close') < Column('Ichimoku.Lead1|240')
                 ichi_lead1_lead2_60 = Column('Ichimoku.Lead1|60') < Column('Ichimoku.Lead2|60')
                 ichi_close_lead1_60 = Column('close') < Column('Ichimoku.Lead1|60')
             conditions = [
@@ -198,11 +200,12 @@ class TV_Scanner:
                 cond_market_cap,
                 cond_perf_Y,
                 cond_perf_1M,
-                ichi_lead1_1w,
-                ichi_lead2_1w,
                 ichi_lead1,
                 ichi_lead2,
-                ichi_lead1_lead2,
+                ichi_lead1_lead2_1w,
+                ichi_close_lead1_1w,
+                ichi_lead1_lead2_240,
+                ichi_close_lead1_240,
                 ichi_lead1_lead2_60,
                 ichi_close_lead1_60,
             ]
@@ -224,6 +227,8 @@ class TV_Scanner:
                     'Ichimoku.Lead2',
                     'Ichimoku.Lead1|60',
                     'Ichimoku.Lead2|60',
+                    'Ichimoku.Lead1|240',
+                    'Ichimoku.Lead2|240',
                 ) \
                 .where(*conditions) \
                 .order_by(OrderBy.PERF_Y.value, ascending=False if is_long else True) \
