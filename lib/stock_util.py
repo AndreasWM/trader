@@ -73,7 +73,7 @@ class StockUtil:
         
     def create_invest_order(self, p: ScannerPosition, capital_per_stock: float) -> IBKROrder:
         symbol=cast(str, p.symbol).replace('.', ' ')
-        quantity = int(capital_per_stock / p.price)
+        quantity = round(capital_per_stock / p.price)
         action = "BUY"
         print(f"Creating invest order for {symbol}: action={action}, quantity={quantity:.2f}")
         return IBKROrder(

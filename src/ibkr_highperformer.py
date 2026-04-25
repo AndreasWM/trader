@@ -124,7 +124,7 @@ class Investor:
             tickers_to_exclude=tickers_to_exclude, market_cap=2000000000, capital_per_stock=self.capital_per_stock())
         print(f"Länge gefilterte Scanner-Liste: {len(scanner_list)}")
         orders = self.generate_orders(
-            ibkr_list=ibkr_list, scanner_list=scanner_list, capital=self.get_capital(), capital_per_stock=self.capital_per_stock())
+            ibkr_list=ibkr_list, scanner_list=scanner_list, capital=self.get_capital() * self._leverage, capital_per_stock=self.capital_per_stock())
         self._util.execute_orders(trader=self._ibkr, orders=orders)
 
     def disconnect(self):
