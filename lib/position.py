@@ -31,11 +31,11 @@ class ScannerPosition(Position):
     def __init__(self, symbol: str, price: float = 0.0, market_cap: int = 0, is_long: bool = True):
         super().__init__(symbol)
         self.price = price
-        self.market_cap = market_cap
-        self.is_long = is_long
+        # self.market_cap = market_cap
+        # self.is_long = is_long
     
     def __str__(self):
-        return f"ScannerPosition(symbol={self.symbol}, price={self.price}, price={self.market_cap})"
+        return f"ScannerPosition(symbol={self.symbol}, price={self.price})"
     
     def __repr__(self):
         return self.__str__()        

@@ -74,12 +74,10 @@ class StockUtil:
     def create_invest_order(self, p: ScannerPosition, capital_per_stock: float) -> IBKROrder:
         symbol=cast(str, p.symbol).replace('.', ' ')
         quantity = int(capital_per_stock / p.price)
-        action = "BUY" if p.is_long else "SELL"
+        action = "BUY"
         print(f"Creating invest order for {symbol}: action={action}, quantity={quantity:.2f}")
         return IBKROrder(
             symbol=symbol,
-            exchange='SMART',
-            position=0,
             qty=quantity,
             action=action
         )
@@ -87,12 +85,10 @@ class StockUtil:
     def create_close_order(self, p: IBKRPosition) -> IBKROrder:
         symbol=p.symbol.replace('.', ' ')
         quantity = abs(p.position)
-        action = "SELL" if p.position > 0 else "BUY"
+        action = "SELL"
         print(f"Creating close order for {symbol}: action={action}, quantity={quantity}")
         return IBKROrder(
             symbol=symbol,
-            exchange='SMART',
-            position=0,
             qty=quantity,
             action=action
         )

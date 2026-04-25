@@ -18,8 +18,8 @@ from ibapi.tag_value import TagValue
 @dataclass
 class IBKROrder:
     symbol: str
-    exchange: str
-    position: int
+    # exchange: str
+    # position: int
     qty: int
     action: str
 

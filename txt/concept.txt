@@ -1,0 +1,65 @@
+class Position:
+    def __init__(self, symbol: str):
+        self.symbol = symbol
+    
+    def __str__(self):
+        return f"Position(symbol={self.symbol})"
+    
+    def __repr__(self):
+        return self.__str__()
+    
+    def __eq__(self, other):
+        if not hasattr(other, 'symbol'):
+            return False
+        return self.symbol == other.symbol
+    
+    def __hash__(self):
+        return hash(self.symbol)
+
+class IBKRPosition(Position):
+    def __init__(self, symbol: str, position: int = 0):
+        super().__init__(symbol)
+        self.position = position
+    
+    def __str__(self):
+        return f"IBKRPosition(symbol={self.symbol}, position={self.position})"
+    
+    def __repr__(self):
+        return self.__str__()
+    
+class ScannerPosition(Position):
+    def __init__(self, symbol: str, price: float = 0.0, market_cap: int = 0, is_long: bool = True):
+        super().__init__(symbol)
+        self.price = price
+    
+    def __str__(self):
+        return f"ScannerPosition(symbol={self.symbol}, price={self.price})"
+    
+    def __repr__(self):
+        return self.__str__()        
+
+@dataclass
+class IBKROrder:
+    symbol: str
+    qty: int
+    action: str
+
+ibkr_list: list[IBKRPosition], gefüllt mit allen Positionen des Aktiendepots
+scanner_list: list[ScannerPosition], gefüllt mit allen Ergebnissen aus der Aktiensuche
+orders: list[IBKROrder], Liste aus Kauf- und Verkaufsorders, anfangs leer
+capital: float, initialisiert mit dem zur Verfügung stehenden Kapital
+capital_per_stock: float, initialisiert mit dem vorgesehenen Kapital für eine Kauforder
+
+Algorithmus:
+1. Gehe die Aktien aus scanner_list der Reihe nach durch.
+2. Gehe zu Schritt 4, wenn capital < capital_per_stock ist.
+3a. Wenn die Aktie in ibkr_list enthalten ist, ziehe position * price von capital ab. Verkleinere ibkr_list um diese Aktie.
+3b. Wenn die Aktie dort nicht enthalten ist, ermittele qty = capital_per_stock / price, kaufmännisch gerundet. Ziehe qty * price von capital ab.
+    Füge orders eine Kauforder IBKROrder(symbol, qty, "BUY") hinzu.
+4. Für alle Aktien aus der Restliste ibkr_list füge orders eine Verkaufsorder IBKROrder(symbol, position, "SELL") hinzu.
+   Addiere jeweils position * price zu capital und entferne die Aktie aus ibkr_list.
+5. Beginne eine weitere Schleife über scanner_list, aufsetzend hinter der letzten Aktie, die geprüft worden ist.
+6. Beende die Verarbeitung, wenn capital < capital_per_stock ist.
+7a. Analog zu 3b, wenn symbol nicht in den Verkaufsorders enthalten ist.
+7b. Wenn symbol in den Verkaufsorders enthalten ist, dann lösche die Verkaufsorder und reduziere das Kapital entsprechend,
+   sofern es dadurch nicht negativ wird. Falls doch, beende die Verarbeitung.

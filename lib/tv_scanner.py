@@ -159,103 +159,7 @@ class TV_Scanner:
                 print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
                 return scanner_data
 
-    def query_usa(self, is_long: bool, tickers_to_exclude: list[str], market_cap: int, capital_per_stock: float = 0.0, limit=100) -> list[ScannerPosition]:
-        pos_list = []
-
-        if limit > 0:
-            cond_limit_size = Column('close') < capital_per_stock
-            cond_stocktype = Column('type') == 'stock'
-            cond_typespec = Column('subtype') != 'preferred'
-            cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
-            cond_market_cap = Column('market_cap_basic') > market_cap
-
-            conditions = []
-            if is_long:
-                cond_perf_Y = Column('Perf.Y') > 150
-                cond_perf_1M = Column('Perf.1M') > 0
-                ichi_lead1 = Column('close') > Column('Ichimoku.Lead1')
-                ichi_lead2 = Column('close') > Column('Ichimoku.Lead2')
-                ichi_lead1_lead2_1w = Column('Ichimoku.Lead1|60') > Column('Ichimoku.Lead2|1W')
-                ichi_close_lead1_1w = Column('close') > Column('Ichimoku.Lead1|1W')
-                ichi_lead1_lead2_240 = Column('Ichimoku.Lead1|60') > Column('Ichimoku.Lead2|240')
-                ichi_close_lead1_240 = Column('close') > Column('Ichimoku.Lead1|240')
-                ichi_lead1_lead2_60 = Column('Ichimoku.Lead1|60') > Column('Ichimoku.Lead2|60')
-                ichi_close_lead1_60 = Column('close') > Column('Ichimoku.Lead1|60')
-            else:
-                cond_perf_Y = Column('Perf.Y') < -10
-                cond_perf_1M = Column('Perf.1M') < 0
-                ichi_lead1 = Column('close') < Column('Ichimoku.Lead1')
-                ichi_lead2 = Column('close') < Column('Ichimoku.Lead2')
-                ichi_lead1_lead2_1w = Column('Ichimoku.Lead1|60') < Column('Ichimoku.Lead2|1W')
-                ichi_close_lead1_1w = Column('close') < Column('Ichimoku.Lead1|1W')
-                ichi_lead1_lead2_240 = Column('Ichimoku.Lead1|60') < Column('Ichimoku.Lead2|240')
-                ichi_close_lead1_240 = Column('close') < Column('Ichimoku.Lead1|240')
-                ichi_lead1_lead2_60 = Column('Ichimoku.Lead1|60') < Column('Ichimoku.Lead2|60')
-                ichi_close_lead1_60 = Column('close') < Column('Ichimoku.Lead1|60')
-            conditions = [
-                cond_limit_size,
-                cond_stocktype,
-                cond_typespec,
-                cond_exchange,
-                cond_market_cap,
-                cond_perf_Y,
-                cond_perf_1M,
-                ichi_lead1,
-                ichi_lead2,
-                ichi_lead1_lead2_1w,
-                ichi_close_lead1_1w,
-                ichi_lead1_lead2_240,
-                ichi_close_lead1_240,
-                ichi_lead1_lead2_60,
-                ichi_close_lead1_60,
-            ]
-            if tickers_to_exclude:
-                conditions.append(Column('name').not_in(tickers_to_exclude))
-            
-            q = Query() \
-                .select(
-                    'name',
-                    'close',
-                    'exchange',
-                    'type',
-                    'market_cap_basic',
-                    'Perf.Y',
-                    'Perf.1M',
-                    'Ichimoku.Lead1|1W',
-                    'Ichimoku.Lead2|1W',
-                    'Ichimoku.Lead1',
-                    'Ichimoku.Lead2',
-                    'Ichimoku.Lead1|60',
-                    'Ichimoku.Lead2|60',
-                    'Ichimoku.Lead1|240',
-                    'Ichimoku.Lead2|240',
-                ) \
-                .where(*conditions) \
-                .order_by(OrderBy.PERF_Y.value, ascending=False if is_long else True) \
-                .limit(200)
-            
-            _, scanner_data = q.get_scanner_data(cookies=self._cookies)
-            
-            scanner_data = scanner_data.drop(columns=['ticker'])
-            scanner_data = scanner_data.rename(columns={
-                "name": "symbol",
-                "close": "price",
-            })
-            
-            for _, row in scanner_data.iterrows():
-                symbol = row['symbol']
-                price = float(row['price'])
-                pos = ScannerPosition(symbol=symbol, price=price, is_long=is_long)
-                pos_list.append(pos)
-
-            print(f"📊 Gefundene {'Long' if is_long else 'Short'}-Positionen: {len(pos_list)} (Limit: {limit})")
-            result_list = list(islice(pos_list, limit))
-            return result_list
-        else:
-            print("⚠️  Limit für Abfrage ist 0 oder negativ, keine Daten abgefragt")
-            return []
-
-    def query_big_usa(self, is_long: bool, tickers_to_exclude: list[str], market_cap: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
+    def query_usa_highflyer(self, tickers_to_exclude: list[str], market_cap: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
         pos_list = []
 
         cond_limit_size = Column('close') < capital_per_stock
@@ -264,36 +168,12 @@ class TV_Scanner:
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
 
-        conditions = []
-        if is_long:
-            cond_change_percent = Column('change') > 0
-            ichi_lead1 = Column('close') > Column('Ichimoku.Lead1')
-            ichi_lead2 = Column('close') > Column('Ichimoku.Lead2')
-            ichi_lead1_60 = Column('close') > Column('Ichimoku.Lead1|60')
-            ichi_lead2_60 = Column('close') > Column('Ichimoku.Lead2|60')
-            ichi_lead1_240 = Column('close') > Column('Ichimoku.Lead1|240')
-            ichi_lead2_240 = Column('close') > Column('Ichimoku.Lead2|240')
-        else:
-            cond_change_percent = Column('change') < 0
-            ichi_lead1 = Column('close') < Column('Ichimoku.Lead1')
-            ichi_lead2 = Column('close') < Column('Ichimoku.Lead2')
-            ichi_lead1_60 = Column('close') < Column('Ichimoku.Lead1|60')
-            ichi_lead2_60 = Column('close') < Column('Ichimoku.Lead2|60')
-            ichi_lead1_240 = Column('close') < Column('Ichimoku.Lead1|240')
-            ichi_lead2_240 = Column('close') < Column('Ichimoku.Lead2|240')
         conditions = [
             cond_limit_size,
             cond_stocktype,
             cond_typespec,
             cond_exchange,
             cond_market_cap,
-            cond_change_percent,
-            ichi_lead1,
-            ichi_lead2,
-            ichi_lead1_60,
-            ichi_lead2_60,
-            ichi_lead1_240,
-            ichi_lead2_240,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -302,20 +182,14 @@ class TV_Scanner:
             .select(
                 'name',
                 'close',
-                'change',
                 'exchange',
                 'type',
                 'subtype',
                 'market_cap_basic',
-                'Ichimoku.Lead1',
-                'Ichimoku.Lead2',
-                'Ichimoku.Lead1|60',
-                'Ichimoku.Lead2|60',
-                'Ichimoku.Lead1|240',
-                'Ichimoku.Lead2|240',
+                'Perf.YTD'
             ) \
             .where(*conditions) \
-            .order_by(OrderBy.MARKET_CAP.value, ascending=False) \
+            .order_by(OrderBy.PERF_Y.value, ascending=False) \
             .limit(200)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
@@ -331,57 +205,8 @@ class TV_Scanner:
             symbol = row['symbol']
             price = float(row['price'])
             market_cap = int(row['market_cap'])
-            pos = ScannerPosition(symbol=symbol, price=price, market_cap=market_cap, is_long=is_long)
+            pos = ScannerPosition(symbol=symbol, price=price, market_cap=market_cap, is_long=True)
             pos_list.append(pos)
 
-        print(f"📊 Gefundene {'Long' if is_long else 'Short'}-Positionen: {len(pos_list)}")
+        print(f"📊 {len(pos_list)} Positionen gefunden")
         return pos_list
-
-    def get_ratio_bull_bear(self) -> float:
-        print("📡 Scanne AMEX:SPY für Bull/Bear Ratio...")
-        min_ratio = 0.2
-        max_ratio = 0.8
-        
-        try:
-            q = Query() \
-                .select(
-                    'name',
-                    'exchange',
-                    'close',
-                    'Ichimoku.Lead1',
-                    'Ichimoku.Lead2',
-                ) \
-                .where(
-                    Column('name') == 'SPY',
-                    Column('exchange') == 'AMEX'
-                )
-            
-            _, scanner_data = q.get_scanner_data(cookies=self._cookies)
-            
-            if scanner_data is None or scanner_data.empty:
-                print("⚠️  Keine Daten für SPY gefunden, verwende Default {max_ratio}")
-                return max_ratio
-            
-            row = scanner_data.iloc[0]
-            price = float(row['close'])
-            lead1 = float(row['Ichimoku.Lead1'])
-            lead2 = float(row['Ichimoku.Lead2'])
-            
-            min_lead = min(lead1, lead2)
-            max_lead = max(lead1, lead2)
-            if price <= min_lead:
-                ratio = min_ratio
-            elif price >= max_lead:
-                ratio = max_ratio
-            else:
-                ratio = min_ratio + (max_ratio - min_ratio) * (price - min_lead) / (max_lead - min_lead)
-            
-            print(f"  Price: {price:.2f}")
-            print(f"  Lead1: {lead1:.2f}, Lead2: {lead2:.2f}")
-            print(f"  {'🐻 Bearish' if ratio <= min_ratio else '🐂 Bullish' if ratio >= max_ratio else '🐂 Neutral'} → Ratio: {ratio}")
-            
-            return ratio
-            
-        except Exception as e:
-            print(f"⚠️  Fehler beim Scannen von SPX500: {e}")
-            return 0.7
