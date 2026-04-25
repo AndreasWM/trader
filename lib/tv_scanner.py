@@ -190,7 +190,7 @@ class TV_Scanner:
             ) \
             .where(*conditions) \
             .order_by(OrderBy.PERF_Y.value, ascending=False) \
-            .limit(200)
+            .limit(100)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
         
