@@ -75,7 +75,7 @@ class StockUtil:
         symbol=cast(str, p.symbol).replace('.', ' ')
         quantity = round(capital_per_stock / p.price)
         action = "BUY"
-        print(f"Creating invest order for {symbol}: action={action}, quantity={quantity:.2f}")
+        print(f"Creating invest order for {symbol}: tech_rating={p.tech_rating}, action={action}, quantity={quantity:.2f}")
         return IBKROrder(
             symbol=symbol,
             qty=quantity,
@@ -85,7 +85,7 @@ class StockUtil:
     def create_close_order(self, p: IBKRPosition) -> IBKROrder:
         symbol=p.symbol.replace('.', ' ')
         quantity = abs(p.position)
-        action = "SELL"
+        action = "SELL" if p.position > 0 else "BUY"
         print(f"Creating close order for {symbol}: action={action}, quantity={quantity}")
         return IBKROrder(
             symbol=symbol,

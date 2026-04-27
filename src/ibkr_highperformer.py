@@ -36,15 +36,6 @@ class Investor:
         capital_per_stock = (capital * self._leverage) / self._number_of_stocks
         return capital_per_stock
     
-    def buy_usa_highflyer(self, scanner: TV_Scanner, tickers_to_exclude: list[str]) -> list[IBKROrder]:
-        scanner_list: list[ScannerPosition] = scanner.query_usa_highflyer(tickers_to_exclude=tickers_to_exclude,
-                                                   market_cap=2000000000, capital_per_stock=self.capital_per_stock())
-        print(f"Länge Scanner-Liste: {len(scanner_list)}")
-
-        invest_orders = [self._util.create_invest_order(cast(ScannerPosition, p), capital_per_stock=self.capital_per_stock())
-                              for p in scanner_list]
-        return invest_orders
-    
     def generate_orders(self,
         ibkr_list: list[IBKRPosition],
         scanner_list: list[ScannerPosition],
@@ -72,7 +63,8 @@ class Investor:
             else:
                 qty = round(capital_per_stock / scan_pos.price)
                 capital -= qty * scan_pos.price
-                orders.append(self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock()))
+                if scan_pos.tech_rating >= 0.1:
+                    orders.append(self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock()))
 
         for ibkr_pos in list(ibkr_remaining):
             price = next(
@@ -108,7 +100,8 @@ class Investor:
                     break
             else:
                 capital -= cost
-                orders.append(self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock()))
+                if scan_pos.tech_rating >= 0.1:
+                    orders.append(self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock()))
 
         return orders
     

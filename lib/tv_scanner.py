@@ -186,7 +186,7 @@ class TV_Scanner:
                 'type',
                 'subtype',
                 'market_cap_basic',
-                'Perf.YTD'
+                'Recommend.All',
             ) \
             .where(*conditions) \
             .order_by(OrderBy.PERF_Y.value, ascending=False) \
@@ -198,14 +198,14 @@ class TV_Scanner:
         scanner_data = scanner_data.rename(columns={
             "name": "symbol",
             "close": "price",
-            "market_cap_basic": "market_cap",
+            "Recommend.All": "tech_rating",
         })
         
         for _, row in scanner_data.iterrows():
             symbol = row['symbol']
             price = float(row['price'])
-            market_cap = int(row['market_cap'])
-            pos = ScannerPosition(symbol=symbol, price=price, market_cap=market_cap, is_long=True)
+            tech_rating = float(row['tech_rating'])
+            pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating)
             pos_list.append(pos)
 
         print(f"📊 {len(pos_list)} Positionen gefunden")
