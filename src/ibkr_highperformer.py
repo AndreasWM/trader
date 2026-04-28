@@ -22,8 +22,9 @@ class Investor:
     def __init__(self):
         self._ibkr = MarketOrder()
         self._util = StockUtil()
-        self._number_of_stocks = 50
-        self._leverage = 1.5
+        self._number_of_stocks = 3
+        max_number_of_stocks = 50
+        self._leverage = 1.5 * self._number_of_stocks / max_number_of_stocks
 
     def get_capital(self) -> float:
       capital = self._ibkr.get_capital()
@@ -37,7 +38,7 @@ class Investor:
         return capital_per_stock
     
     def filter(self, scan_pos: ScannerPosition) -> bool:
-        return scan_pos.tech_rating >= 0.1 and scan_pos.change > 0
+        return scan_pos.tech_rating >= 0.5 and scan_pos.change > 0
 
     def next_step(self, ibkr_remaining: list[IBKRPosition], ibkr_lookup: dict[str, IBKRPosition],
                   scan_pos: ScannerPosition, orders: list[IBKROrder],
@@ -55,9 +56,9 @@ class Investor:
                 capital -= qty * scan_pos.price
                 if capital > 0.0:
                     order = self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock())
+                    print(f"{scan_pos.symbol} kaufen, Kapital: {capital}")
             if capital < capital_per_stock:
                 end_of_list = True
-            print(f"{scan_pos.symbol} kaufen, Kapital: {capital}")
         return capital, order, end_of_list
     
     def generate_orders(self,
@@ -79,11 +80,10 @@ class Investor:
                 capital=capital,
                 capital_per_stock=capital_per_stock
             )
+            if order is not None:
+                orders.append(order)
             if end_of_list:
                 break
-            else:
-                if order is not None:
-                    orders.append(order)
 
         for ibkr_pos in list(ibkr_remaining):
             orders.insert(0, self._util.create_close_order(ibkr_pos))
@@ -97,7 +97,7 @@ class Investor:
         unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
         scanner_list = TV_Scanner().query_usa_highflyer(
             tickers_to_exclude=unwanted_tickers, market_cap=2000000000, capital_per_stock=self.capital_per_stock())
-        print(f"Länge gefilterte Scanner-Liste: {len(scanner_list)}")
+        print(f"Länge Scanner-Liste: {len(scanner_list)}")
         orders = self.generate_orders(
             ibkr_list=ibkr_list, scanner_list=scanner_list, capital=self.get_capital() * self._leverage, capital_per_stock=self.capital_per_stock())
         self._util.execute_orders(trader=self._ibkr, orders=orders)

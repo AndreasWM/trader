@@ -210,5 +210,4 @@ class TV_Scanner:
             pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating, change=change)
             pos_list.append(pos)
 
-        print(f"📊 {len(pos_list)} Positionen gefunden")
         return pos_list
