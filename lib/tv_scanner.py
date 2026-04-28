@@ -182,6 +182,7 @@ class TV_Scanner:
             .select(
                 'name',
                 'close',
+                'change',
                 'exchange',
                 'type',
                 'subtype',
@@ -205,7 +206,8 @@ class TV_Scanner:
             symbol = row['symbol']
             price = float(row['price'])
             tech_rating = float(row['tech_rating'])
-            pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating)
+            change = float(row['change'])
+            pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating, change=change)
             pos_list.append(pos)
 
         print(f"📊 {len(pos_list)} Positionen gefunden")
