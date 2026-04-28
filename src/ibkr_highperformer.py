@@ -1,6 +1,6 @@
 import os
 import sys
-from typing import cast
+from typing import Tuple, cast
 from matplotlib.pylab import Enum
 from sklearn.pipeline import islice
 
@@ -36,6 +36,30 @@ class Investor:
         capital_per_stock = (capital * self._leverage) / self._number_of_stocks
         return capital_per_stock
     
+    def filter(self, scan_pos: ScannerPosition) -> bool:
+        return scan_pos.tech_rating >= 0.1 and scan_pos.change > 0
+
+    def next_step(self, ibkr_remaining: list[IBKRPosition], ibkr_lookup: dict[str, IBKRPosition],
+                  scan_pos: ScannerPosition, orders: list[IBKROrder],
+                  capital: float, capital_per_stock: float) -> Tuple[float, IBKROrder | None, bool]:
+        order = None
+        end_of_list = False
+        if scan_pos.symbol in ibkr_lookup:
+            ibkr_pos = ibkr_lookup.pop(scan_pos.symbol)
+            ibkr_remaining.remove(ibkr_pos)
+            capital -= ibkr_pos.position * scan_pos.price
+            print(f"{scan_pos.symbol} vorhanden, Kapital: {capital}")
+        else:
+            if self.filter(scan_pos):
+                qty = round(capital_per_stock / scan_pos.price)
+                capital -= qty * scan_pos.price
+                if capital > 0.0:
+                    order = self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock())
+            if capital < capital_per_stock:
+                end_of_list = True
+            print(f"{scan_pos.symbol} kaufen, Kapital: {capital}")
+        return capital, order, end_of_list
+    
     def generate_orders(self,
         ibkr_list: list[IBKRPosition],
         scanner_list: list[ScannerPosition],
@@ -43,78 +67,36 @@ class Investor:
         capital_per_stock: float,
     ) -> list[IBKROrder]:
         orders: list[IBKROrder] = []
-
-        # Work on mutable copies
         ibkr_remaining = list(ibkr_list)
         ibkr_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in ibkr_remaining}
 
-        last_checked_index = -1
-
-        for i, scan_pos in enumerate(scanner_list):
-            last_checked_index = i
-
-            if capital < capital_per_stock:
+        for scan_pos in scanner_list:
+            capital, order, end_of_list = self.next_step(
+                ibkr_remaining=ibkr_remaining,
+                ibkr_lookup=ibkr_lookup,
+                scan_pos=scan_pos,
+                orders=orders,
+                capital=capital,
+                capital_per_stock=capital_per_stock
+            )
+            if end_of_list:
                 break
-
-            if scan_pos.symbol in ibkr_lookup:
-                ibkr_pos = ibkr_lookup.pop(scan_pos.symbol)
-                ibkr_remaining.remove(ibkr_pos)
-                capital -= ibkr_pos.position * scan_pos.price
             else:
-                qty = round(capital_per_stock / scan_pos.price)
-                capital -= qty * scan_pos.price
-                if scan_pos.tech_rating >= 0.1:
-                    orders.append(self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock()))
+                if order is not None:
+                    orders.append(order)
 
         for ibkr_pos in list(ibkr_remaining):
-            price = next(
-                (sp.price for sp in scanner_list if sp.symbol == ibkr_pos.symbol),
-                0.0,
-            )
-            orders.append(self._util.create_close_order(ibkr_pos))
-            capital += ibkr_pos.position * price
+            orders.insert(0, self._util.create_close_order(ibkr_pos))
             ibkr_remaining.remove(ibkr_pos)
-
-        for scan_pos in scanner_list[last_checked_index + 1:]:
-            if capital < capital_per_stock:
-                break
-
-            qty = round(capital_per_stock / scan_pos.price)
-            cost = qty * scan_pos.price
-
-            sell_order = next(
-                (o for o in orders if o.symbol == scan_pos.symbol and o.action == "SELL"),
-                None,
-            )
-
-            if sell_order is not None:
-                sell_price = next(
-                    (sp.price for sp in scanner_list if sp.symbol == scan_pos.symbol),
-                    0.0,
-                )
-                reclaimed = sell_order.qty * sell_price
-                if capital - reclaimed >= 0:
-                    capital -= reclaimed
-                    orders.remove(sell_order)
-                else:
-                    break
-            else:
-                capital -= cost
-                if scan_pos.tech_rating >= 0.1:
-                    orders.append(self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock()))
 
         return orders
     
     def invest(self):
-        ibkr_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
+        ibkr_list = self._util.ibkr_positions(trader=self._ibkr)
         print(f"Länge IBKR-Liste: {len(ibkr_list)}")
-        share_list = list(p.symbol for p in ibkr_list if p.position > 0)
-
-        scanner = TV_Scanner()
         unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
-        tickers_to_exclude: list[str] = unwanted_tickers + share_list
-        scanner_list = scanner.query_usa_highflyer(
-            tickers_to_exclude=tickers_to_exclude, market_cap=2000000000, capital_per_stock=self.capital_per_stock())
+        scanner_list = TV_Scanner().query_usa_highflyer(
+            tickers_to_exclude=unwanted_tickers, market_cap=2000000000, capital_per_stock=self.capital_per_stock())
         print(f"Länge gefilterte Scanner-Liste: {len(scanner_list)}")
         orders = self.generate_orders(
             ibkr_list=ibkr_list, scanner_list=scanner_list, capital=self.get_capital() * self._leverage, capital_per_stock=self.capital_per_stock())
