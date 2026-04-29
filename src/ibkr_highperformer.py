@@ -23,10 +23,12 @@ class Investor:
         self._ibkr = MarketOrder()
         self._util = StockUtil()
         self._number_of_stocks = 50
-        self._leverage = 1.5
+        self._max_number_of_stocks = 50
+        self._leverage = 1.5 * self._number_of_stocks / self._max_number_of_stocks
+        self._capital_reserve = 0
 
     def get_capital(self) -> float:
-      capital = self._ibkr.get_capital()
+      capital = self._ibkr.get_capital() - self._capital_reserve
       price_eurusd = YfinanceTicker().get_eurusd()
       capital *= price_eurusd
       return capital
@@ -55,7 +57,8 @@ class Investor:
                 capital -= qty * scan_pos.price
                 if capital > 0.0:
                     order = self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock())
-                    print(f"{scan_pos.symbol} kaufen, Kapital: {capital}")
+                    print(f"{scan_pos.symbol} kaufen, "
+                          f"Preis: {scan_pos.price:.2f}, Tech-Rating: {scan_pos.tech_rating:.3f}, Veränderung: {scan_pos.change:.2f} %")
             if capital < capital_per_stock:
                 end_of_list = True
         return capital, order, end_of_list
@@ -86,7 +89,7 @@ class Investor:
             if end_of_list:
                 break
 
-        if share_count > self._number_of_stocks:
+        if share_count > self._max_number_of_stocks:
             for ibkr_pos in list(ibkr_remaining):
                 orders.insert(0, self._util.create_close_order(ibkr_pos))
                 ibkr_remaining.remove(ibkr_pos)
