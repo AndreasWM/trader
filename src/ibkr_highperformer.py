@@ -22,9 +22,8 @@ class Investor:
     def __init__(self):
         self._ibkr = MarketOrder()
         self._util = StockUtil()
-        self._number_of_stocks = 3
-        max_number_of_stocks = 50
-        self._leverage = 1.5 * self._number_of_stocks / max_number_of_stocks
+        self._number_of_stocks = 50
+        self._leverage = 1.5
 
     def get_capital(self) -> float:
       capital = self._ibkr.get_capital()
@@ -71,6 +70,7 @@ class Investor:
         ibkr_remaining = list(ibkr_list)
         ibkr_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in ibkr_remaining}
 
+        share_count = 0
         for scan_pos in scanner_list:
             capital, order, end_of_list = self.next_step(
                 ibkr_remaining=ibkr_remaining,
@@ -78,16 +78,18 @@ class Investor:
                 scan_pos=scan_pos,
                 orders=orders,
                 capital=capital,
-                capital_per_stock=capital_per_stock
+                capital_per_stock=capital_per_stock,
             )
             if order is not None:
                 orders.append(order)
+                share_count += 1
             if end_of_list:
                 break
 
-        for ibkr_pos in list(ibkr_remaining):
-            orders.insert(0, self._util.create_close_order(ibkr_pos))
-            ibkr_remaining.remove(ibkr_pos)
+        if share_count > self._number_of_stocks:
+            for ibkr_pos in list(ibkr_remaining):
+                orders.insert(0, self._util.create_close_order(ibkr_pos))
+                ibkr_remaining.remove(ibkr_pos)
 
         return orders
     
