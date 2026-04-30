@@ -45,20 +45,21 @@ class Investor:
                   scan_pos: ScannerPosition, orders: list[IBKROrder],
                   capital: float, capital_per_stock: float) -> Tuple[float, IBKROrder | None, bool]:
         order = None
+        print(f"Nr. {share_no:02d} {scan_pos.symbol:<6s}    ", end="")
         if scan_pos.symbol in ibkr_lookup:
             ibkr_pos = ibkr_lookup.pop(scan_pos.symbol)
             ibkr_remaining.remove(ibkr_pos)
             capital -= ibkr_pos.position * scan_pos.price
-            print(f"Nr. {share_no:02d} {scan_pos.symbol:<6s}    vorhanden, Kapital: {capital}")
+            print("       vorhanden, ", end="")
         else:
-            qty = round(capital_per_stock / scan_pos.price)
-            capital -= qty * scan_pos.price
             if self.filter(scan_pos) and capital > 0.0:
+                qty = round(capital_per_stock / scan_pos.price)
+                capital -= qty * scan_pos.price
                 order = self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock())
-                print(f"Nr. {share_no:02d} {scan_pos.symbol:<6s}       kaufen, "
-                      f"Preis: {scan_pos.price:.2f}, Tech-Rating: {scan_pos.tech_rating:.3f}, Veränderung: {scan_pos.change:.2f} %")
+                print("       kaufen, ", end="")
             else:
-                print(f"Nr. {share_no:02d} {scan_pos.symbol:<6s} überspringen, Kapital: {capital}")
+                print(" überspringen, ", end="")
+            print(f"Preis: {scan_pos.price:7.2f}, Tech-Rating: {scan_pos.tech_rating:+6.3f}, Veränderung: {scan_pos.change:+6.2f} %")
         finished = share_no >= self._max_number_of_stocks or capital < capital_per_stock
         return capital, order, finished
     
