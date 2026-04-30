@@ -75,7 +75,7 @@ class StockUtil:
         symbol=cast(str, p.symbol).replace('.', ' ')
         quantity = round(capital_per_stock / p.price)
         action = "BUY"
-        print(f"Creating invest order for {symbol}: action={action}, quantity={quantity:.2f}")
+        # print(f"Creating invest order for {symbol}: action={action}, quantity={quantity:.2f}")
         return IBKROrder(
             symbol=symbol,
             qty=quantity,
