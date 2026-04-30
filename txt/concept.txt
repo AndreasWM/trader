@@ -2,10 +2,10 @@ ibkr_list: list[IBKRPosition]               Die Liste aller Aktien im Depot
 scanner_list: list[ScannerPosition]         Alle US-Aktien ab 2 Mrd. Marktkapitalisierung, absteigend geordnet nach 12-Monats-Performance
                                             Max. 100 Stück; unerwünschte Aktien werden herausgefiltert.
 
-1. Gehe scanner_list der Reihe nach durch, solange noch Kapital vorhanden ist.
+1. Gehe scanner_list der Reihe nach durch, solange noch Kapital vorhanden ist, höchstens aber die maximal angestrebte Anzahl von Aktien.
    Filter: Starkes Kaufsignal im Tageschart und positive Tagesschwankung.
 1a. Wenn schon im Depot, dann keine Änderung, aber Wert vom Kapital abziehen.
 1b. Wenn noch nicht im Depot, dann kaufen (fester Betrag pro Aktie, Anzahl kaufmännisch runden) und Kaufwert vom Kapital abziehen.
-2. Wenn durch die vorherigen Schritte alles Kapital verbraucht worden ist, dann anschließend alle weiteren im Depot vorhandenen Aktien verkaufen;
+2. Alle Aktien, die bis jetzt noch nicht in scanner_list gefunden worden sind, verkaufen.
    Reihenfolge so gestalten, dass zuerst verkauft wird, dann erst gekauft.
 
