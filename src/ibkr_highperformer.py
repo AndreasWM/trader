@@ -59,8 +59,8 @@ class Investor:
                       f"Preis: {scan_pos.price:.2f}, Tech-Rating: {scan_pos.tech_rating:.3f}, Veränderung: {scan_pos.change:.2f} %")
             else:
                 print(f"Nr. {share_no:02d} {scan_pos.symbol:<6s} überspringen, Kapital: {capital}")
-        no_more_capital = capital < capital_per_stock
-        return capital, order, no_more_capital
+        finished = share_no >= self._max_number_of_stocks or capital < capital_per_stock
+        return capital, order, finished
     
     def generate_orders(self,
         ibkr_list: list[IBKRPosition],
@@ -72,10 +72,10 @@ class Investor:
         ibkr_remaining = list(ibkr_list)
         ibkr_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in ibkr_remaining}
 
-        no_more_capital = False
+        finished = False
         for i, scan_pos in enumerate(scanner_list):
             share_no = i + 1
-            capital, order, no_more_capital = self.next_step(
+            capital, order, finished = self.next_step(
                 share_no=share_no,
                 ibkr_remaining=ibkr_remaining,
                 ibkr_lookup=ibkr_lookup,
@@ -86,10 +86,10 @@ class Investor:
             )
             if order is not None:
                 orders.append(order)
-            if no_more_capital:
+            if finished:
                 break
 
-        if no_more_capital:
+        if finished:
             for ibkr_pos in list(ibkr_remaining):
                 orders.insert(0, self._util.create_close_order(ibkr_pos))
                 ibkr_remaining.remove(ibkr_pos)
