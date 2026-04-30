@@ -28,14 +28,15 @@ class IBKRPosition(Position):
         return self.__str__()
     
 class ScannerPosition(Position):
-    def __init__(self, symbol: str, price: float = 0.0, tech_rating: float = 0.0, change: float = 0.0):
+    def __init__(self, symbol: str, price: float = 0.0, tech_rating: float = 0.0, change: float = 0.0, perf_y: float = 0.0):
         super().__init__(symbol)
         self.price = price
         self.tech_rating = tech_rating
         self.change = change
+        self.perf_y = perf_y
     
     def __str__(self):
-        return f"ScannerPosition(symbol={self.symbol}, price={self.price}, tech_rating={self.tech_rating}, change={self.change})"
+        return f"ScannerPosition(symbol={self.symbol}, price={self.price}, tech_rating={self.tech_rating}, change={self.change}, perf_y={self.perf_y})"
     
     def __repr__(self):
         return self.__str__()        

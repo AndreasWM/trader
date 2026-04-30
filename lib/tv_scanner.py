@@ -1,16 +1,12 @@
 import os
 import sys
-import subprocess
 from enum import Enum
-from datetime import datetime
-from sklearn.pipeline import islice
 from tradingview_screener.query import Query
 from tradingview_screener.column import Column, col
 import pandas as pd
 import rookiepy
 import shutil
 from pathlib import Path
-
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -187,6 +183,7 @@ class TV_Scanner:
                 'type',
                 'subtype',
                 'market_cap_basic',
+                'Perf.Y',
                 'Recommend.All',
             ) \
             .where(*conditions) \
@@ -199,6 +196,7 @@ class TV_Scanner:
         scanner_data = scanner_data.rename(columns={
             "name": "symbol",
             "close": "price",
+            "Perf.Y": "perf_y",
             "Recommend.All": "tech_rating",
         })
         
@@ -207,7 +205,8 @@ class TV_Scanner:
             price = float(row['price'])
             tech_rating = float(row['tech_rating'])
             change = float(row['change'])
-            pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating, change=change)
+            perf_y = float(row['perf_y'])
+            pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating, change=change, perf_y=perf_y)
             pos_list.append(pos)
 
         return pos_list

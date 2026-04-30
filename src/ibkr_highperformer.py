@@ -1,8 +1,7 @@
 import os
 import sys
-from typing import Tuple, cast
+from typing import Tuple
 from matplotlib.pylab import Enum
-from sklearn.pipeline import islice
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -11,7 +10,7 @@ if project_root not in sys.path:
 from lib.ibkr_market_order import MarketOrder, IBKROrder
 from lib.tv_scanner import TV_Scanner
 from lib.stock_util import StockUtil
-from lib.position import Position, IBKRPosition, ScannerPosition
+from lib.position import IBKRPosition, ScannerPosition
 from lib.yfinance_ticker import YfinanceTicker
 
 class Volatility(Enum):
@@ -22,9 +21,9 @@ class Investor:
     def __init__(self):
         self._ibkr = MarketOrder()
         self._util = StockUtil()
-        self._number_of_stocks = 50
-        self._max_number_of_stocks = 50
-        self._leverage = 1.5 * self._number_of_stocks / self._max_number_of_stocks
+        self._number_of_stocks = 67
+        self._max_number_of_stocks = 67
+        self._leverage = 2.0 * self._number_of_stocks / self._max_number_of_stocks
         self._capital_reserve = 0
 
     def get_capital(self) -> float:
@@ -45,7 +44,7 @@ class Investor:
                   scan_pos: ScannerPosition, orders: list[IBKROrder],
                   capital: float, capital_per_stock: float) -> Tuple[float, IBKROrder | None, bool]:
         order = None
-        print(f"Nr. {share_no:02d} {scan_pos.symbol:<6s} ", end="")
+        print(f"Nr. {share_no:03d} {scan_pos.symbol:<6s} ", end="")
         if scan_pos.symbol in ibkr_lookup:
             ibkr_pos = ibkr_lookup.pop(scan_pos.symbol)
             ibkr_remaining.remove(ibkr_pos)
@@ -59,7 +58,7 @@ class Investor:
                 print("** KAUFEN ** ", end="")
             else:
                 print("überspringen ", end="")
-        print(f"| Preis: {scan_pos.price:7.2f}, Tech-Rating: {scan_pos.tech_rating:+6.3f}, Veränderung: {scan_pos.change:+6.2f} %")
+        print(f"| Preis: {scan_pos.price:7.2f}, Tech-Rating: {scan_pos.tech_rating:+6.3f}, Performance Y: {scan_pos.perf_y:+6.2f} %")
         finished = share_no >= self._max_number_of_stocks or capital < capital_per_stock
         return capital, order, finished
     
