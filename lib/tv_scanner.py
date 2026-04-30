@@ -22,22 +22,6 @@ class OrderBy(Enum):
     def __str__(self):
         return self.value
 
-class PositionPerf:
-    def __init__(self, symbol: str, position: int = 0, price: float = 0.0, perf_y: float = 0.0):
-        self.symbol = symbol
-        self.position = position
-        self.price = price
-        self.perf_y = perf_y
-
-    def __str__(self):
-        return f"Position(symbol={self.symbol}, position={self.position}, price={self.price}, perf_y={self.perf_y})"
-    
-    def __repr__(self):
-        return self.__str__()
-    
-    def is_long(self) -> bool:
-        return self.perf_y > 0
-    
 class TV_Scanner:
     def __init__(self):
         # Erkennung der Umgebung
