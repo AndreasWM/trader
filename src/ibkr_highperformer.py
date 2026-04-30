@@ -73,7 +73,6 @@ class Investor:
         ibkr_remaining = list(ibkr_list)
         ibkr_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in ibkr_remaining}
 
-        share_count = 0
         no_more_capital = False
         for scan_pos in scanner_list:
             capital, order, no_more_capital = self.next_step(
@@ -86,7 +85,6 @@ class Investor:
             )
             if order is not None:
                 orders.append(order)
-                share_count += 1
             if no_more_capital:
                 break
 
