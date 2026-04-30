@@ -3,8 +3,9 @@ scanner_list: list[ScannerPosition]         Alle US-Aktien ab 2 Mrd. Marktkapita
                                             Max. 100 Stück; unerwünschte Aktien werden herausgefiltert.
 
 1. Gehe scanner_list der Reihe nach durch, solange noch Kapital vorhanden ist.
+   Filter: Starkes Kaufsignal im Tageschart und positive Tagesschwankung.
 1a. Wenn schon im Depot, dann keine Änderung, aber Wert vom Kapital abziehen.
-1b. Wenn noch nicht im Depot, dann kaufen und Kaufwert vom Kapital abziehen.
+1b. Wenn noch nicht im Depot, dann kaufen (fester Betrag pro Aktie, Anzahl kaufmännisch runden) und Kaufwert vom Kapital abziehen.
 2. Wenn durch die vorherigen Schritte alles Kapital verbraucht worden ist, dann anschließend alle weiteren im Depot vorhandenen Aktien verkaufen;
    Reihenfolge so gestalten, dass zuerst verkauft wird, dann erst gekauft.
 
