@@ -22,14 +22,14 @@ class Investor:
         self._ibkr = MarketOrder()
         self._util = StockUtil()
         
-        self._number_of_stocks = 6
-        self._max_number_of_stocks = 50
+        self._number_of_stocks = 67
+        self._max_number_of_stocks = 67
         self._min_market_cap = 2000000000
         price_eurusd = YfinanceTicker().get_eurusd()
         net_liquidation = self._ibkr.get_net_liquidation() * price_eurusd
-        capital_reserve = 10000 * price_eurusd
+        capital_reserve = 0 * price_eurusd
         self._investment_capacity=net_liquidation - capital_reserve
-        self._leverage = 1.5 / self._max_number_of_stocks
+        self._leverage = 2.0 / self._max_number_of_stocks
         self._capital_per_stock = self._investment_capacity * self._leverage
         self._min_technical_rating = 0.5
 
@@ -40,9 +40,6 @@ class Investor:
     
     def get_free_capital(self, ibkr_list: list[IBKRPosition], scanner_list: list[ScannerPosition], investment_capacity: float) -> float:
         equity_value = self.get_equity_value(ibkr_list=ibkr_list, scanner_list=scanner_list)
-        print(f"Investment Capacity: {investment_capacity:,.2f} USD")
-        print(f"Leverage: {self._leverage:,.2f}")
-        print(f"Equity Value der aktuellen Positionen: {equity_value:,.2f} USD")
         free_capital = investment_capacity * self._leverage * self._number_of_stocks - equity_value
         return free_capital
     
@@ -76,7 +73,6 @@ class Investor:
         sc = TV_Scanner()
 
         ibkr_list = self._util.ibkr_positions(trader=self._ibkr)
-        print(f"Länge IBKR-Liste: {len(ibkr_list)}")
         ibkr_symbols = [p.symbol for p in ibkr_list]
         ibkr_scanner_list = sc.scan_stock_list(stock_list=ibkr_symbols)
 
@@ -84,13 +80,10 @@ class Investor:
         buy_scanner_list = sc.query_usa_highflyer(
             tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap,
             max_number=self._max_number_of_stocks, capital_per_stock=self._capital_per_stock)
-        print(f"Länge Scanner-Liste: {len(buy_scanner_list)}")
 
         free_capital = self.get_free_capital(ibkr_list=ibkr_list, scanner_list=ibkr_scanner_list, investment_capacity=self._investment_capacity)
-        print(f"Freies Kapital für Investitionen: {free_capital:,.2f} USD")
 
         least_perf = buy_scanner_list[self._max_number_of_stocks-1].perf_y
-        print(f"Performance der letzten Aktie im Scanner: {least_perf:+.2f} %")
         sell_orders = self.create_sell_orders(ibkr_list=ibkr_list, scanner_list=ibkr_scanner_list, perf_of_last_stock=least_perf, free_capital=free_capital)
 
         buy_orders = self.create_buy_orders(ibkr_scanner_list=ibkr_scanner_list, buy_scanner_list=buy_scanner_list, free_capital=free_capital)
