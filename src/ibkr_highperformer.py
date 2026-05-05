@@ -21,90 +21,81 @@ class Investor:
     def __init__(self):
         self._ibkr = MarketOrder()
         self._util = StockUtil()
-        self._number_of_stocks = 67
-        self._max_number_of_stocks = 67
-        self._leverage = 2.0 * self._number_of_stocks / self._max_number_of_stocks
-        self._capital_reserve = 0
+        
+        self._number_of_stocks = 6
+        self._max_number_of_stocks = 50
+        self._min_market_cap = 2000000000
+        price_eurusd = YfinanceTicker().get_eurusd()
+        net_liquidation = self._ibkr.get_net_liquidation() * price_eurusd
+        capital_reserve = 10000 * price_eurusd
+        self._investment_capacity=net_liquidation - capital_reserve
+        self._leverage = 1.5 / self._max_number_of_stocks
+        self._capital_per_stock = self._investment_capacity * self._leverage
+        self._min_technical_rating = 0.5
 
-    def get_capital(self) -> float:
-      capital = self._ibkr.get_capital() - self._capital_reserve
-      price_eurusd = YfinanceTicker().get_eurusd()
-      capital *= price_eurusd
-      return capital
-
-    def capital_per_stock(self) -> float:
-        capital = self.get_capital()
-        capital_per_stock = (capital * self._leverage) / self._number_of_stocks
-        return capital_per_stock
+    def get_equity_value(self, ibkr_list: list[IBKRPosition], scanner_list: list[ScannerPosition]) -> float:
+        scan_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in scanner_list}
+        equity_value = sum(p.position * scan_lookup.pop(p.symbol).price for p in ibkr_list)
+        return equity_value
     
-    def filter(self, scan_pos: ScannerPosition) -> bool:
-        return scan_pos.tech_rating >= 0.5 and scan_pos.change > 0
-
-    def next_step(self, share_no: int, ibkr_remaining: list[IBKRPosition], ibkr_lookup: dict[str, IBKRPosition],
-                  scan_pos: ScannerPosition, orders: list[IBKROrder],
-                  capital: float, capital_per_stock: float) -> Tuple[float, IBKROrder | None, bool]:
-        order = None
-        print(f"Nr. {share_no:03d} {scan_pos.symbol:<6s} ", end="")
-        if scan_pos.symbol in ibkr_lookup:
-            ibkr_pos = ibkr_lookup.pop(scan_pos.symbol)
-            ibkr_remaining.remove(ibkr_pos)
-            capital -= ibkr_pos.position * scan_pos.price
-            print("Vorhanden    ", end="")
-        else:
-            if self.filter(scan_pos) and capital > 0.0:
-                qty = round(capital_per_stock / scan_pos.price)
-                capital -= qty * scan_pos.price
-                order = self._util.create_invest_order(scan_pos, capital_per_stock=self.capital_per_stock())
-                print("** KAUFEN ** ", end="")
-            else:
-                print("überspringen ", end="")
-        print(f"| Preis: {scan_pos.price:7.2f}, Tech-Rating: {scan_pos.tech_rating:+6.3f}, Performance Y: {scan_pos.perf_y:+6.2f} %")
-        finished = share_no >= self._max_number_of_stocks or capital < capital_per_stock
-        return capital, order, finished
+    def get_free_capital(self, ibkr_list: list[IBKRPosition], scanner_list: list[ScannerPosition], investment_capacity: float) -> float:
+        equity_value = self.get_equity_value(ibkr_list=ibkr_list, scanner_list=scanner_list)
+        print(f"Investment Capacity: {investment_capacity:,.2f} USD")
+        print(f"Leverage: {self._leverage:,.2f}")
+        print(f"Equity Value der aktuellen Positionen: {equity_value:,.2f} USD")
+        free_capital = investment_capacity * self._leverage * self._number_of_stocks - equity_value
+        return free_capital
     
-    def generate_orders(self,
-        ibkr_list: list[IBKRPosition],
-        scanner_list: list[ScannerPosition],
-        capital: float,
-        capital_per_stock: float,
-    ) -> list[IBKROrder]:
+    def create_sell_orders(self, ibkr_list: list[IBKRPosition], scanner_list: list[ScannerPosition],
+                           perf_of_last_stock: float, free_capital: float) -> list[IBKROrder]:
         orders: list[IBKROrder] = []
-        ibkr_remaining = list(ibkr_list)
-        ibkr_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in ibkr_remaining}
-
-        finished = False
-        for i, scan_pos in enumerate(scanner_list):
-            share_no = i + 1
-            capital, order, finished = self.next_step(
-                share_no=share_no,
-                ibkr_remaining=ibkr_remaining,
-                ibkr_lookup=ibkr_lookup,
-                scan_pos=scan_pos,
-                orders=orders,
-                capital=capital,
-                capital_per_stock=capital_per_stock,
-            )
-            if order is not None:
-                orders.append(order)
-            if finished:
-                break
-
-        if finished:
-            for ibkr_pos in list(ibkr_remaining):
-                orders.insert(0, self._util.create_close_order(ibkr_pos))
-                ibkr_remaining.remove(ibkr_pos)
-
+        scan_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in scanner_list}
+        for ibkr_pos in ibkr_list:
+            scan_pos = scan_lookup[ibkr_pos.symbol]
+            if scan_lookup[ibkr_pos.symbol].perf_y < perf_of_last_stock or free_capital < 0.0:
+                orders.append(self._util.create_close_order(ibkr_pos))
+                free_capital += ibkr_pos.position * scan_pos.price
         return orders
-    
+
+    def filter(self, scan_pos: ScannerPosition) -> bool:
+        return scan_pos.tech_rating >= self._min_technical_rating and scan_pos.change > 0
+
+    def create_buy_orders(self, ibkr_scanner_list: list[ScannerPosition], buy_scanner_list: list[ScannerPosition],
+                          free_capital: float) -> list[IBKROrder]:
+        orders: list[IBKROrder] = []
+        ibkr_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in ibkr_scanner_list}
+        for buy_pos in buy_scanner_list:
+            if not buy_pos.symbol in ibkr_lookup:
+                if self.filter(buy_pos) and free_capital > self._capital_per_stock:
+                    order = self._util.create_invest_order(buy_pos, capital_per_stock=self._capital_per_stock)
+                    orders.append(order)
+                    free_capital -= self._capital_per_stock
+        return orders
+
     def invest(self):
+        sc = TV_Scanner()
+
         ibkr_list = self._util.ibkr_positions(trader=self._ibkr)
         print(f"Länge IBKR-Liste: {len(ibkr_list)}")
+        ibkr_symbols = [p.symbol for p in ibkr_list]
+        ibkr_scanner_list = sc.scan_stock_list(stock_list=ibkr_symbols)
+
         unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
-        scanner_list = TV_Scanner().query_usa_highflyer(
-            tickers_to_exclude=unwanted_tickers, market_cap=2000000000, capital_per_stock=self.capital_per_stock())
-        print(f"Länge Scanner-Liste: {len(scanner_list)}")
-        orders = self.generate_orders(
-            ibkr_list=ibkr_list, scanner_list=scanner_list, capital=self.get_capital() * self._leverage, capital_per_stock=self.capital_per_stock())
+        buy_scanner_list = sc.query_usa_highflyer(
+            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap,
+            max_number=self._max_number_of_stocks, capital_per_stock=self._capital_per_stock)
+        print(f"Länge Scanner-Liste: {len(buy_scanner_list)}")
+
+        free_capital = self.get_free_capital(ibkr_list=ibkr_list, scanner_list=ibkr_scanner_list, investment_capacity=self._investment_capacity)
+        print(f"Freies Kapital für Investitionen: {free_capital:,.2f} USD")
+
+        least_perf = buy_scanner_list[self._max_number_of_stocks-1].perf_y
+        print(f"Performance der letzten Aktie im Scanner: {least_perf:+.2f} %")
+        sell_orders = self.create_sell_orders(ibkr_list=ibkr_list, scanner_list=ibkr_scanner_list, perf_of_last_stock=least_perf, free_capital=free_capital)
+
+        buy_orders = self.create_buy_orders(ibkr_scanner_list=ibkr_scanner_list, buy_scanner_list=buy_scanner_list, free_capital=free_capital)
+
+        orders = sell_orders + buy_orders
         self._util.execute_orders(trader=self._ibkr, orders=orders)
 
     def disconnect(self):

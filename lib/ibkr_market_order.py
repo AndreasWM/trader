@@ -389,7 +389,7 @@ class MarketOrder(EClient, EWrapper):
     # -----------------------------
     # Kapitalabfrage
     # -----------------------------
-    def get_capital(self, timeout: float = 5.0) -> float:
+    def get_net_liquidation(self, timeout: float = 5.0) -> float:
         self._capital_event.clear()
         self.reqAccountSummary(1, "All", "NetLiquidation")
         if not self._capital_event.wait(timeout=timeout):

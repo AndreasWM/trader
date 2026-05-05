@@ -1,11 +1,23 @@
-ibkr_list: list[IBKRPosition]               Die Liste aller Aktien im Depot
-scanner_list: list[ScannerPosition]         Alle US-Aktien ab 2 Mrd. Marktkapitalisierung, absteigend geordnet nach 12-Monats-Performance
-                                            Max. 100 Stück; unerwünschte Aktien werden herausgefiltert.
+number_of_stocks                          Aktuelle Anzahl Aktien
+max_number_of_stocks                      Maximalzahl der Aktien im Depot
+min_market_cap                            Minimale Marktkapitalisierung der Aktien
+price_eurusd                              Euro-Kurs in US-Dollar
+net_liquidation                           Wert des Gesamtdepots, so wie von IBKR geliefert, in Dollar
+capital_reserve                           Geldbetrag, welcher nicht investiert werden soll, in Dollar
+investment_capacity                       = net_liquidation - capital_reserve
+leverage                                  1.5 / max_number_of_stocks (Hebel auf investment_capacity)
+capital_per_stock                         = investment_capacity * leverage
+ibkr_list: list[IBKRPosition]             Liste aller Aktien im Depot
+equity_value                              Der aktuelle Wert aller Aktien aus ibkr_list
+free_capital                              = investment_capacity * leverage * number_of_stocks - equity_value
+scanner_list: list[ScannerPosition]       Alle US-Aktien ab 2 Mrd. Marktkapitalisierung, absteigend geordnet nach 12-Monats-Performance
+                                          Max. 100 Stück; unerwünschte Aktien herausgefiltert
+min_technical_rating                      = 0.5
 
-1. Gehe scanner_list der Reihe nach durch, solange noch Kapital vorhanden ist, höchstens aber die maximal angestrebte Anzahl von Aktien.
-   Filter: Starkes Kaufsignal im Tageschart und positive Tagesschwankung.
-1a. Wenn schon im Depot, dann keine Änderung, aber Wert vom Kapital abziehen.
-1b. Wenn noch nicht im Depot, dann kaufen (fester Betrag pro Aktie, Anzahl kaufmännisch runden) und Kaufwert vom Kapital abziehen.
-2. Alle Aktien, die bis jetzt noch nicht in scanner_list gefunden worden sind, verkaufen.
-   Reihenfolge so gestalten, dass zuerst verkauft wird, dann erst gekauft.
-
+1. Verkaufe Aktien aus ibkr_list nach einer oder mehrerer der folgenden Kriterien, beginnend mit der schlechtesten Performance
+   und addiere bei allen Verkäufen den aktuellen Wert zu free_capital.
+   1a. Schlechtere Performance als die Aktie mit der Nummer max_number_of_stocks.
+   1b. free_capital < 0
+2. Gehe scanner_list der Reihe nach durch, solange noch Kapital vorhanden ist und max. bis zur Aktie mit der Nummer max_number_of_stocks.
+   2a. Filter: Noch nicht im Depot, starkes Kaufsignal im Tageschart und positive Tagesschwankung.
+   2b. Kaufen (fester Betrag pro Aktie, Anzahl kaufmännisch runden) und Kaufwert vom Kapital abziehen.
