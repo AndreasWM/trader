@@ -50,9 +50,9 @@ class StockUtil:
 
     def get_latest_watchlist_file(self, trader: MarketOrder) -> str:
         if trader.detect_ib_host() == "127.0.0.1":
-            directory = '/home/andreas/github/trading_batch/data'
+            directory = '/home/andreas/github/trader/data'
         else:
-            directory = '/mnt/c/Users/moell/Downloads/trading_batch/data'
+            directory = '/mnt/c/Users/moell/Downloads/trader/data'
         pattern = os.path.join(directory, 'Watchlist*.csv')
         files = glob.glob(pattern)
         
