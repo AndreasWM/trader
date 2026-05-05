@@ -12,9 +12,10 @@ equity_value                              Der aktuelle Wert aller Aktien aus ibk
 free_capital                              = investment_capacity * leverage * number_of_stocks - equity_value
 scanner_list: list[ScannerPosition]       Alle US-Aktien ab 2 Mrd. Marktkapitalisierung, absteigend geordnet nach 12-Monats-Performance
                                           Max. 100 Stück; unerwünschte Aktien herausgefiltert
+ibkr_scanner_list: list[ScannerPosition]  ibkr_list, aufsteigend geordnet nach 12-Monats-Performance
 min_technical_rating                      = 0.5
 
-1. Verkaufe Aktien aus ibkr_list nach einer oder mehrerer der folgenden Kriterien, beginnend mit der schlechtesten Performance
+1. Verkaufe Aktien aus ibkr_scanner_list nach einer oder mehrerer der folgenden Kriterien, beginnend mit der schlechtesten Performance
    und addiere bei allen Verkäufen den aktuellen Wert zu free_capital.
    1a. Schlechtere Performance als die Aktie mit der Nummer max_number_of_stocks.
    1b. free_capital < 0

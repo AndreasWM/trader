@@ -105,7 +105,8 @@ class TV_Scanner:
                         'Ichimoku.Lead1',
                         'Ichimoku.Lead2',
                     ) \
-                    .where(*conditions)
+                    .where(*conditions) \
+                    .order_by(OrderBy.PERF_Y.value, ascending=True)
                 
                 try:
                     _, scanner_data = q.get_scanner_data(cookies=self._cookies)

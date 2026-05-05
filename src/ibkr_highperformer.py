@@ -22,7 +22,7 @@ class Investor:
         self._ibkr = MarketOrder()
         self._util = StockUtil()
         
-        self._number_of_stocks = 30
+        self._number_of_stocks = 67
         self._max_number_of_stocks = 67
         self._min_market_cap = 2000000000
         price_eurusd = YfinanceTicker().get_eurusd()
@@ -46,15 +46,15 @@ class Investor:
     def create_sell_orders(self, ibkr_list: list[IBKRPosition], scanner_list: list[ScannerPosition],
                            perf_of_last_stock: float, free_capital: float) -> list[IBKROrder]:
         orders: list[IBKROrder] = []
-        scan_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in scanner_list}
-        for ibkr_pos in ibkr_list:
-            scan_pos = scan_lookup[ibkr_pos.symbol]
-            if scan_lookup[ibkr_pos.symbol].perf_y < perf_of_last_stock or free_capital < 0.0:
+        ibkr_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in ibkr_list}
+        for scan_pos in scanner_list:
+            ibkr_pos = ibkr_lookup[scan_pos.symbol]
+            if scan_pos.perf_y < perf_of_last_stock or free_capital < 0.0:
                 orders.append(self._util.create_close_order(ibkr_pos))
-                print(f"Verkaufe {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, perf_of_last_stock={perf_of_last_stock:7.2f}%, free_capital={free_capital: 010.2f} USD")
+                print(f"Verkaufe {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, perf_of_last_stock={perf_of_last_stock:7.2f}%")
                 free_capital += ibkr_pos.position * scan_pos.price
             else:
-                print(f" Behalte {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, perf_of_last_stock={perf_of_last_stock:7.2f}%, free_capital={free_capital: 010.2f} USD")
+                print(f" Behalte {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, perf_of_last_stock={perf_of_last_stock:7.2f}%")
         return orders
 
     def filter(self, scan_pos: ScannerPosition) -> bool:
@@ -67,6 +67,7 @@ class Investor:
         for buy_pos in buy_scanner_list:
             if not buy_pos.symbol in ibkr_lookup:
                 if self.filter(buy_pos) and free_capital > self._capital_per_stock:
+                    print(f"   Kaufe {buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD")
                     order = self._util.create_invest_order(buy_pos, capital_per_stock=self._capital_per_stock)
                     orders.append(order)
                     free_capital -= self._capital_per_stock
