@@ -74,7 +74,8 @@ class Investor:
                     orders.append(order)
                     free_capital -= self._capital_per_stock
                 else:
-                    print(f"Ignoriere {buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD")
+                    print(f"Ignoriere {buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, "
+                          f"tech_rating={buy_pos.tech_rating: 010.2f}, change={buy_pos.change: 010.2f} %")
         return orders
 
     def invest(self):
