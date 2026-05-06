@@ -32,6 +32,7 @@ class Investor:
         self._leverage = 1.5 / self._max_number_of_stocks
         self._capital_per_stock = self._investment_capacity * self._leverage
         self._min_technical_rating = 0.5
+        self._reduce = False
 
     def get_equity_value(self, ibkr_list: list[IBKRPosition], scanner_list: list[ScannerPosition]) -> float:
         scan_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in scanner_list}
@@ -49,7 +50,7 @@ class Investor:
         ibkr_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in ibkr_list}
         for scan_pos in scanner_list:
             ibkr_pos = ibkr_lookup[scan_pos.symbol]
-            if scan_pos.perf_y < perf_of_last_stock or free_capital < 0.0:
+            if scan_pos.perf_y < perf_of_last_stock or free_capital < 0.0 or self._reduce and scan_pos.tech_rating < self._min_technical_rating:
                 orders.append(self._util.create_close_order(ibkr_pos))
                 free_capital += ibkr_pos.position * scan_pos.price
                 print(f" Verkaufe {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, perf_of_last_stock={perf_of_last_stock:7.2f}%")
@@ -86,6 +87,12 @@ class Investor:
         ibkr_symbols = [p.symbol for p in ibkr_list]
         ibkr_scanner_list = sc.scan_stock_list(stock_list=ibkr_symbols)
 
+        util = StockUtil()
+        watchlist_file = 'data/ibkr_long.txt'
+        util.create_watchlist_file(ibkr_symbols, filename=watchlist_file)
+        if os.path.exists(watchlist_file):
+            print(f"\n📥 Watchlist für Long-Positionen erstellt: {watchlist_file}\n")
+
         unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
         buy_scanner_list = sc.query_usa_highflyer(
             tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap,
@@ -96,7 +103,10 @@ class Investor:
         least_perf = buy_scanner_list[self._max_number_of_stocks-1].perf_y
         sell_orders = self.create_sell_orders(ibkr_list=ibkr_list, scanner_list=ibkr_scanner_list, perf_of_last_stock=least_perf, free_capital=free_capital)
 
-        buy_orders = self.create_buy_orders(ibkr_scanner_list=ibkr_scanner_list, buy_scanner_list=buy_scanner_list, free_capital=free_capital)
+        if self._reduce:
+            buy_orders = []
+        else:
+            buy_orders = self.create_buy_orders(ibkr_scanner_list=ibkr_scanner_list, buy_scanner_list=buy_scanner_list, free_capital=free_capital)
 
         orders = sell_orders + buy_orders
         self._util.execute_orders(trader=self._ibkr, orders=orders)
