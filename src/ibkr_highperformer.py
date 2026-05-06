@@ -51,8 +51,8 @@ class Investor:
             ibkr_pos = ibkr_lookup[scan_pos.symbol]
             if scan_pos.perf_y < perf_of_last_stock or free_capital < 0.0:
                 orders.append(self._util.create_close_order(ibkr_pos))
-                print(f" Verkaufe {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, perf_of_last_stock={perf_of_last_stock:7.2f}%")
                 free_capital += ibkr_pos.position * scan_pos.price
+                print(f" Verkaufe {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, perf_of_last_stock={perf_of_last_stock:7.2f}%")
             else:
                 print(f"  Behalte {ibkr_pos.symbol:<6} perf_y={scan_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, perf_of_last_stock={perf_of_last_stock:7.2f}%")
         return orders
@@ -69,13 +69,14 @@ class Investor:
                 break
             elif not buy_pos.symbol in ibkr_lookup:
                 if self.filter(buy_pos):
-                    print(f"    Kaufe {buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD")
                     order = self._util.create_invest_order(buy_pos, capital_per_stock=self._capital_per_stock)
                     orders.append(order)
                     free_capital -= self._capital_per_stock
+                    print(f"    Kaufe ", end="")
                 else:
-                    print(f"Ignoriere {buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, "
-                          f"tech_rating={buy_pos.tech_rating: 010.2f}, change={buy_pos.change: 010.2f} %")
+                    print(f"Ignoriere ", end="")
+                print(f"{buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={free_capital: 010.2f} USD, "
+                      f"tech_rating={buy_pos.tech_rating: 010.2f}, change={buy_pos.change: 010.2f} %")
         return orders
 
     def invest(self):

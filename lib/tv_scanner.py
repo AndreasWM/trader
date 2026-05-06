@@ -105,8 +105,7 @@ class TV_Scanner:
                         'Ichimoku.Lead1',
                         'Ichimoku.Lead2',
                     ) \
-                    .where(*conditions) \
-                    .order_by(OrderBy.PERF_Y.value, ascending=True)
+                    .where(*conditions)
                 
                 try:
                     _, scanner_data = q.get_scanner_data(cookies=self._cookies)
@@ -149,8 +148,9 @@ class TV_Scanner:
             pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating, change=change, perf_y=perf_y)
             pos_list.append(pos)
 
-        return pos_list
-        
+        sorted_list = sorted(pos_list, key=lambda x: x.perf_y)
+        return sorted_list
+
     def query_usa_highflyer(self, tickers_to_exclude: list[str], market_cap: int,
                             max_number: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
         pos_list = []
