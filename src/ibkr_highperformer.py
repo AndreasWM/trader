@@ -34,18 +34,18 @@ class StockList:
         util = StockUtil()
         sc = TV_Scanner()
 
-        self.number_of_stocks = 50
+        self.number_of_stocks = 1
         self.max_number_of_stocks = 50
         self.leverage = 1.0 / self.max_number_of_stocks
         self.min_market_cap = 10000000000
         self.min_technical_rating = 0.5
         self.reduce = False
 
-        self.stock_list = util.ibkr_positions(trader=ibkr)
+        self.stock_list: list[IBKRPosition] = util.ibkr_positions(trader=ibkr)
         self._stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self.stock_list}
 
         ibkr_symbols = [p.symbol for p in self.stock_list]
-        self.scanner_list = sc.scan_stock_list(stock_list=ibkr_symbols)
+        self.scanner_list: list[ScannerPosition] = sc.scan_stock_list(stock_list=ibkr_symbols)
 
         price_eurusd = YfinanceTicker().get_eurusd()
         net_liquidation = ibkr.get_net_liquidation() * price_eurusd
@@ -67,6 +67,10 @@ class StockList:
         equity_value = self.get_equity_value()
         free_capital = self.investment_capacity * self.leverage * self.number_of_stocks - equity_value
         return free_capital
+    
+    def min_position_perf_y(self) -> ScannerPosition | None:
+        min_position = min(self.scanner_list, key=lambda p: p.perf_y, default=None)
+        return min_position
 
 class InvestList:
     def __init__(self, ibkr: MarketOrder, stock_list: StockList):
@@ -75,16 +79,16 @@ class InvestList:
         sc = TV_Scanner()
 
         unwanted_tickers = util.read_symbols(util.get_latest_watchlist_file(trader=self._ibkr))
-        self._buy_scanner_list = sc.query_usa_highflyer(
+        self._buy_scanner_list: list[ScannerPosition] = sc.query_usa_highflyer(
             tickers_to_exclude=unwanted_tickers, market_cap=stock_list.min_market_cap,
             max_number=stock_list.max_number_of_stocks, capital_per_stock=stock_list.capital_per_stock)
         self.least_perf = self._buy_scanner_list[stock_list.max_number_of_stocks-1].perf_y
 
 class Strategy:
     def __init__(self, ibkr: MarketOrder):
-        self._stock_list = StockList(ibkr=ibkr)
-        self._invest_list = InvestList(ibkr=ibkr, stock_list=self._stock_list)
-        self._order_list = OrderList(free_capital=self.get_free_capital(), capital_per_stock=self._stock_list.capital_per_stock)
+        self._stock_list: StockList = StockList(ibkr=ibkr)
+        self._invest_list: InvestList = InvestList(ibkr=ibkr, stock_list=self._stock_list)
+        self._order_list: OrderList = OrderList(free_capital=self.get_free_capital(), capital_per_stock=self._stock_list.capital_per_stock)
 
     def get_equity_value(self) -> float:
         scan_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._stock_list.scanner_list}
@@ -122,16 +126,24 @@ class Strategy:
     def create_buy_orders(self):
         ibkr_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._stock_list.scanner_list}
         for buy_pos in self._invest_list._buy_scanner_list:
-            if self._order_list.free_capital <= self._stock_list.capital_per_stock:
-                break
-            elif not buy_pos.symbol in ibkr_lookup:
-                if self.buy_filter(buy_pos):
-                    self._order_list.buy(buy_pos=buy_pos)
-                    print(f"    Kaufe ", end="")
+            if not buy_pos.symbol in ibkr_lookup:
+                if self._order_list.free_capital > self._stock_list.capital_per_stock:
+                    min_position = self._stock_list.min_position_perf_y()
+                    if min_position is not None:
+                        if self.buy_filter(buy_pos) and min_position.perf_y < buy_pos.perf_y:
+                            ibkr_pos = self._stock_list.get_position(min_position)
+                            if ibkr_pos is not None:
+                                self._order_list.sell(ibkr_pos=ibkr_pos, scan_pos=min_position)
+                            self._order_list.buy(buy_pos=buy_pos)
+                            print(f"    Kaufe ", end="")
                 else:
-                    print(f"Ignoriere ", end="")
-                print(f"{buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={self._order_list.free_capital: 010.2f} USD, "
-                      f"tech_rating={buy_pos.tech_rating: 010.2f}, change={buy_pos.change: 010.2f} %")
+                    if self.buy_filter(buy_pos):
+                        self._order_list.buy(buy_pos=buy_pos)
+                        print(f"    Kaufe ", end="")
+                    else:
+                        print(f"Ignoriere ", end="")
+                    print(f"{buy_pos.symbol:<6} perf_y={buy_pos.perf_y:8.2f}%, free_capital={self._order_list.free_capital: 010.2f} USD, "
+                        f"tech_rating={buy_pos.tech_rating: 010.2f}, change={buy_pos.change: 010.2f} %")
 
 class Investor:
     def __init__(self):
