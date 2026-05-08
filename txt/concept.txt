@@ -22,3 +22,20 @@ min_technical_rating                      = 0.5
 2. Gehe scanner_list der Reihe nach durch, solange noch Kapital vorhanden ist und max. bis zur Aktie mit der Nummer max_number_of_stocks.
    2a. Filter: Noch nicht im Depot, starkes Kaufsignal im Tageschart und positive Tagesschwankung.
    2b. Kaufen (fester Betrag pro Aktie, Anzahl kaufmännisch runden) und Kaufwert vom Kapital abziehen.
+
+
+Neues Konzept:
+
+stock_list: list[IBKRPosition]
+scanner_stock_list: list[ScannerPosition]
+scanner_invest_list: list[ScannerPosition]
+
+stock_long_symbols = stock_list.filter_long().symbols
+stock_short_symbols = stock_list.filter_short().symbols
+top_symbols = scanner_invest_list.top10.symbols
+bottom_symbols = scanner_invest_list.bottom10.symbols
+
+top_close_symbols = stock_long_symbols - top_symbols
+top_invest_symbols = top_symbols - stock_long_symbols
+bottom_close_symbols = stock_short_symbols - bottom_symbols
+bottom_invest_symbols = bottom_symbols - stock_short_symbols
