@@ -9,14 +9,14 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from lib.tv_scanner import TV_Scanner
+from lib.tv_scanner import TV_Scanner, Performance
 from lib.ibkr_market_order import IBKROrder, MarketOrder
 from lib.position import IBKRPosition, ScannerPosition
 
 class StockUtil:
     def get_exchanges(self, symbols: list[str]) -> list[dict]:
         sc = TV_Scanner()
-        results = sc.scan_list(stock_list=symbols)
+        results = sc.scan_list(stock_list=symbols, performance=Performance.Pf_1M)
         if isinstance(results, pd.DataFrame) and not results.empty:
             return results[['symbol', 'exchange']].to_dict('records')
         else:
@@ -74,7 +74,7 @@ class StockUtil:
     def create_invest_order(self, p: ScannerPosition, capital_per_stock: float) -> IBKROrder:
         symbol=cast(str, p.symbol).replace('.', ' ')
         quantity = round(capital_per_stock / p.price)
-        action = "BUY"
+        action = "BUY" if p.perf > 0 else "SELL"
         print(f"Creating invest order for {symbol}: action={action}, quantity={quantity:.2f}, capital_per_stock={capital_per_stock:.2f}, price={p.price:.2f}")
         return IBKROrder(
             symbol=symbol,

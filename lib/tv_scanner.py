@@ -13,15 +13,23 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from lib.position import ScannerPosition
+
 class OrderBy(Enum):
     INDUSTRY = "industry"
     MARKET_CAP = "market_cap_basic"
-    PERF_Y = "Perf.Y"
+    PERF_1M = "Perf.1M"
     SYMBOL = "name"
 
     def __str__(self):
         return self.value
 
+class Performance(Enum):
+    Pf_1M = "Perf.1M"
+    Pf_1W = "Perf.1W"
+    Pf_Y = "Perf.Y"
+
+    def __str__(self):
+        return self.value
 class TV_Scanner:
     def __init__(self):
         # Erkennung der Umgebung
@@ -78,7 +86,7 @@ class TV_Scanner:
             print(f"❌ WSL-Cookie-Fehler: {e}")
             return None
             
-    def scan_list(self, stock_list: list[str]) -> pd.DataFrame:
+    def scan_list(self, stock_list: list[str], performance: Performance) -> pd.DataFrame:
         print(f"📡 Scanne {len(stock_list)} Aktien bei TradingView...")
         
         if stock_list is None:
@@ -100,7 +108,7 @@ class TV_Scanner:
                         'exchange',
                         'close',
                         'change',
-                        'Perf.Y',
+                        performance.value,
                         'Recommend.All',
                         'Ichimoku.Lead1',
                         'Ichimoku.Lead2',
@@ -127,7 +135,7 @@ class TV_Scanner:
                 scanner_data = scanner_data.rename(columns={
                     "name": "symbol",
                     "close": "price",
-                    "Perf.Y": "perf_y",
+                    performance.value: "perf",
                     "Recommend.All": "tech_rating",
                     "Ichimoku.Lead1": "lead1",
                     "Ichimoku.Lead2": "lead2",
@@ -136,23 +144,8 @@ class TV_Scanner:
                 print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
                 return scanner_data
 
-    def scan_stock_list(self, stock_list: list[str]) -> list[ScannerPosition]:
-        scanner_data = self.scan_list(stock_list=stock_list)
-        pos_list = []
-        for _, row in scanner_data.iterrows():
-            symbol = row['symbol']
-            price = float(row['price'])
-            change = float(row['change'])
-            tech_rating = float(row['tech_rating'])
-            perf_y = float(row['perf_y'])
-            pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating, change=change, perf_y=perf_y)
-            pos_list.append(pos)
-
-        sorted_list = sorted(pos_list, key=lambda x: x.perf_y)
-        return sorted_list
-
-    def query_usa_highflyer(self, tickers_to_exclude: list[str], market_cap: int,
-                            max_number: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
+    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int,
+                           performance: Performance, max_number: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
         pos_list = []
 
         cond_limit_size = Column('close') < capital_per_stock
@@ -175,16 +168,14 @@ class TV_Scanner:
             .select(
                 'name',
                 'close',
-                'change',
                 'exchange',
                 'type',
                 'subtype',
                 'market_cap_basic',
-                'Perf.Y',
-                'Recommend.All',
+                performance.value,
             ) \
             .where(*conditions) \
-            .order_by(OrderBy.PERF_Y.value, ascending=False) \
+            .order_by(performance.value, ascending=False) \
             .limit(max_number)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
@@ -193,17 +184,14 @@ class TV_Scanner:
         scanner_data = scanner_data.rename(columns={
             "name": "symbol",
             "close": "price",
-            "Perf.Y": "perf_y",
-            "Recommend.All": "tech_rating",
+            performance.value: "perf",
         })
         
         for _, row in scanner_data.iterrows():
             symbol = row['symbol']
             price = float(row['price'])
-            tech_rating = float(row['tech_rating'])
-            change = float(row['change'])
-            perf_y = float(row['perf_y'])
-            pos = ScannerPosition(symbol=symbol, price=price, tech_rating=tech_rating, change=change, perf_y=perf_y)
+            perf = float(row['perf'])
+            pos = ScannerPosition(symbol=symbol, price=price, perf=perf)
             pos_list.append(pos)
 
         return pos_list
