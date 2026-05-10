@@ -36,10 +36,11 @@ class StockList:
         number_of_stocks: int = 10
         max_number_of_stocks: int = 200
         performance: Performance = Performance.Pf_1M
-
+        
         price_eurusd = YfinanceTicker().get_eurusd()
-        net_liquidation = ibkr.get_net_liquidation() * price_eurusd
         capital_reserve = 0 * price_eurusd
+
+        net_liquidation = ibkr.get_net_liquidation() * price_eurusd
         investment_capacity=net_liquidation - capital_reserve
         self.capital_per_stock = investment_capacity * leverage / number_of_stocks
 
