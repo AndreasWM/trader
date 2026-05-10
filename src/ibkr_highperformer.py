@@ -11,20 +11,6 @@ from lib.stock_util import StockUtil
 from lib.position import IBKRPosition, ScannerPosition
 from lib.yfinance_ticker import YfinanceTicker
 
-class OrderList:
-    def __init__(self, capital_per_stock: float):
-        self._capital_per_stock = capital_per_stock
-        self._util = StockUtil()
-        self.orders = []
-
-    def invest(self, scanner_pos: ScannerPosition):
-        order = self._util.create_invest_order(scanner_pos, capital_per_stock=self._capital_per_stock)
-        self.orders.append(order)
-    
-    def close(self, ibkr_pos: IBKRPosition):
-        order = self._util.create_close_order(ibkr_pos)
-        self.orders.append(order)
-
 class StockList:
     def __init__(self, ibkr: MarketOrder):
         ibkr = ibkr
@@ -36,7 +22,7 @@ class StockList:
         number_of_stocks: int = 10
         max_number_of_stocks: int = 200
         performance: Performance = Performance.Pf_1M
-        
+
         price_eurusd = YfinanceTicker().get_eurusd()
         capital_reserve = 0 * price_eurusd
 
@@ -62,14 +48,31 @@ class StockList:
         self.bottom_close_symbols = [symbol for symbol in stock_short_symbols if symbol not in [s.symbol for s in scanner_bottom10]]
         self.bottom_invest_symbols = [p.symbol for p in scanner_bottom10 if p.symbol not in stock_short_symbols]
 
-    def get_position(self, scan_pos: ScannerPosition) -> IBKRPosition | None:
-        ibkr_pos = self.stock_lookup.get(scan_pos.symbol)
-        return ibkr_pos
+class OrderList:
+    def __init__(self, capital_per_stock: float):
+        self._capital_per_stock = capital_per_stock
+        self._util = StockUtil()
+        self.orders = []
 
-class Strategy:
-    def __init__(self, ibkr: MarketOrder):
-        self._stock_list: StockList = StockList(ibkr=ibkr)
+    def invest(self, scanner_pos: ScannerPosition):
+        order = self._util.create_invest_order(scanner_pos, capital_per_stock=self._capital_per_stock)
+        self.orders.append(order)
+    
+    def close(self, ibkr_pos: IBKRPosition):
+        order = self._util.create_close_order(ibkr_pos)
+        self.orders.append(order)
+
+class PortfolioManager:
+    def __init__(self):
+        self._ibkr = MarketOrder()
+        self._util = StockUtil()
+        self._stock_list: StockList = StockList(ibkr=self._ibkr)
         self._order_list: OrderList = OrderList(capital_per_stock=self._stock_list.capital_per_stock)
+
+    def invest(self):
+        self.create_close_orders()
+        self.create_invest_orders()
+        self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders)
 
     def create_close_orders(self):
         for symbol in self._stock_list.top_close_symbols + self._stock_list.bottom_close_symbols:
@@ -85,24 +88,13 @@ class Strategy:
                 self._order_list.invest(scanner_pos=scan_pos)
                 print(f"Investiere "f"{scan_pos.symbol:<6} perf={scan_pos.perf: 010.2f}% price={scan_pos.price: 010.2f} USD")
 
-class Investor:
-    def __init__(self):
-        self._ibkr = MarketOrder()
-        self._util = StockUtil()
-        self._strategy = Strategy(ibkr=self._ibkr)
-
-    def invest(self):
-        self._strategy.create_close_orders()
-        self._strategy.create_invest_orders()
-        self._util.execute_orders(trader=self._ibkr, orders=self._strategy._order_list.orders)
-
     def disconnect(self):
         self._ibkr.disconnect()
 
 def main():
-    investor = Investor()
-    investor.invest()
-    investor.disconnect()
+    manager = PortfolioManager()
+    manager.invest()
+    manager.disconnect()
 
 if __name__ == "__main__":
     main()
