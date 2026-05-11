@@ -145,7 +145,7 @@ class TV_Scanner:
                 return scanner_data
 
     def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int,
-                           performance: Performance, max_number: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
+                           performance: Performance, max_length: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
         pos_list = []
 
         cond_limit_size = Column('close') < capital_per_stock
@@ -176,7 +176,7 @@ class TV_Scanner:
             ) \
             .where(*conditions) \
             .order_by(performance.value, ascending=False) \
-            .limit(max_number)
+            .limit(max_length)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
         

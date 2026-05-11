@@ -20,7 +20,8 @@ class StockList:
         min_market_cap = 100000000000
         leverage: float = 1.0
         number_of_stocks: int = 10
-        max_number_of_stocks: int = 200
+        max_number_of_stocks: int = 10
+        max_length_scanner_list: int = 200
         performance: Performance = Performance.Pf_1M
 
         price_eurusd = YfinanceTicker().get_eurusd()
@@ -28,7 +29,7 @@ class StockList:
 
         net_liquidation = ibkr.get_net_liquidation() * price_eurusd
         investment_capacity=net_liquidation - capital_reserve
-        self.capital_per_stock = investment_capacity * leverage / number_of_stocks
+        self.capital_per_stock = investment_capacity * leverage / max_number_of_stocks
 
         self.stock_list: list[IBKRPosition] = util.ibkr_positions(trader=ibkr)
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self.stock_list}
@@ -38,7 +39,7 @@ class StockList:
         unwanted_tickers = util.read_symbols(util.get_latest_watchlist_file(trader=ibkr))
         self.scanner_invest_list: list[ScannerPosition] = sc.query_us_largecaps(
             tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap,
-            performance=performance, max_number=max_number_of_stocks, capital_per_stock=self.capital_per_stock)
+            performance=performance, max_length=max_length_scanner_list, capital_per_stock=self.capital_per_stock)
         self.scanner_invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self.scanner_invest_list}
         
         scanner_top10 = self.scanner_invest_list[:number_of_stocks]
