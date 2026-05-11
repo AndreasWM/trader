@@ -14,18 +14,9 @@ if project_root not in sys.path:
 
 from lib.position import ScannerPosition
 
-class OrderBy(Enum):
-    INDUSTRY = "industry"
-    MARKET_CAP = "market_cap_basic"
-    PERF_1M = "Perf.1M"
-    SYMBOL = "name"
-
-    def __str__(self):
-        return self.value
-
 class Performance(Enum):
     Pf_1M = "Perf.1M"
-    Pf_1W = "Perf.1W"
+    Pf_1W = "Perf.5D"
     Pf_Y = "Perf.Y"
 
     def __str__(self):
