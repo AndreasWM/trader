@@ -159,6 +159,7 @@ class TV_Scanner:
             .select(
                 'name',
                 'close',
+                'premarket_change',
                 'exchange',
                 'type',
                 'subtype',
@@ -181,8 +182,9 @@ class TV_Scanner:
         for _, row in scanner_data.iterrows():
             symbol = row['symbol']
             price = float(row['price'])
+            premarket_change = float(row['premarket_change'])
             perf = float(row['perf'])
-            pos = ScannerPosition(symbol=symbol, price=price, perf=perf)
+            pos = ScannerPosition(symbol=symbol, price=price, premarket_change=premarket_change, perf=perf)
             pos_list.append(pos)
 
         return pos_list
