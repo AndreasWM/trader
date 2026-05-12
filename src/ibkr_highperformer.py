@@ -21,7 +21,6 @@ class StockList:
         leverage: float = 1.0
         number_of_stocks: int = 10
         max_number_of_stocks: int = 10
-        max_length_scanner_list: int = 200
         performance: Performance = Performance.Pf_1M
 
         price_eurusd = YfinanceTicker().get_eurusd()
@@ -37,19 +36,18 @@ class StockList:
         stock_short_symbols = [p.symbol for p in self.stock_list if p.position < 0]
 
         unwanted_tickers = util.read_symbols(util.get_latest_watchlist_file(trader=ibkr))
-        self.scanner_invest_list: list[ScannerPosition] = sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap,
-            performance=performance, max_length=max_length_scanner_list, capital_per_stock=self.capital_per_stock)
-        self.scanner_invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self.scanner_invest_list}
+        self.scanner_long_list: list[ScannerPosition] = sc.query_us_largecaps(
+            tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap, performance=performance,
+            length=number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
+        self.scanner_short_list: list[ScannerPosition] = sc.query_us_largecaps(
+            tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap, performance=performance,
+            length=number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=True)
+        self.scanner_invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self.scanner_long_list + self.scanner_short_list}
         
-        scanner_top10 = self.scanner_invest_list[:number_of_stocks]
-        scanner_bottom10 = self.scanner_invest_list[-number_of_stocks:]
-        self.top_close_symbols = [symbol for symbol in stock_long_symbols if symbol not in [s.symbol for s in scanner_top10]]
-        self.bottom_close_symbols = [symbol for symbol in stock_short_symbols if symbol not in [s.symbol for s in scanner_bottom10]]
-        self.top_invest_symbols = [p.symbol for p in scanner_top10 if p.symbol not in stock_long_symbols]
-        self.bottom_invest_symbols = [p.symbol for p in scanner_bottom10 if p.symbol not in stock_short_symbols]
-        self.top_inverted_symbols = [symbol for symbol in stock_long_symbols if symbol in [s.symbol for s in scanner_top10]]
-        self.bottom_inverted_symbols = [symbol for symbol in stock_short_symbols if symbol in [s.symbol for s in scanner_bottom10]]
+        self.top_close_symbols = [symbol for symbol in stock_long_symbols if symbol not in [s.symbol for s in self.scanner_long_list]]
+        self.bottom_close_symbols = [symbol for symbol in stock_short_symbols if symbol not in [s.symbol for s in self.scanner_short_list]]
+        self.top_invest_symbols = [p.symbol for p in self.scanner_long_list if p.symbol not in stock_long_symbols]
+        self.bottom_invest_symbols = [p.symbol for p in self.scanner_short_list if p.symbol not in stock_short_symbols]
 
 class OrderList:
     def __init__(self, capital_per_stock: float):

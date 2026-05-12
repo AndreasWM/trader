@@ -135,10 +135,8 @@ class TV_Scanner:
                 print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
                 return scanner_data
 
-    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int,
-                           performance: Performance, max_length: int, capital_per_stock: float = 0.0) -> list[ScannerPosition]:
-        pos_list = []
-
+    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int, performance: Performance,
+                           length: int, capital_per_stock: float, ascending: bool) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type') == 'stock'
         cond_typespec = Column('subtype') != 'preferred'
@@ -160,6 +158,7 @@ class TV_Scanner:
                 'name',
                 'close',
                 'premarket_change',
+                'postmarket_change',
                 'exchange',
                 'type',
                 'subtype',
@@ -167,8 +166,8 @@ class TV_Scanner:
                 performance.value,
             ) \
             .where(*conditions) \
-            .order_by(performance.value, ascending=False) \
-            .limit(max_length)
+            .order_by(performance.value, ascending=ascending) \
+            .limit(length)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
         
@@ -179,12 +178,14 @@ class TV_Scanner:
             performance.value: "perf",
         })
         
+        pos_list = []
         for _, row in scanner_data.iterrows():
             symbol = row['symbol']
             price = float(row['price'])
             premarket_change = float(row['premarket_change'])
+            postmarket_change = float(row['postmarket_change'])
             perf = float(row['perf'])
-            pos = ScannerPosition(symbol=symbol, price=price, premarket_change=premarket_change, perf=perf)
+            pos = ScannerPosition(symbol=symbol, price=price, premarket_change=premarket_change, postmarket_change=postmarket_change, perf=perf)
             pos_list.append(pos)
 
         return pos_list
