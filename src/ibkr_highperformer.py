@@ -23,6 +23,7 @@ class StockList:
         max_number_of_stocks: int = 10
         max_length_scanner_list: int = 200
         performance: Performance = Performance.Pf_1M
+        self.inverted: bool = True
 
         price_eurusd = YfinanceTicker().get_eurusd()
         capital_reserve = 0 * price_eurusd
@@ -45,9 +46,11 @@ class StockList:
         scanner_top10 = self.scanner_invest_list[:number_of_stocks]
         scanner_bottom10 = self.scanner_invest_list[-number_of_stocks:]
         self.top_close_symbols = [symbol for symbol in stock_long_symbols if symbol not in [s.symbol for s in scanner_top10]]
-        self.top_invest_symbols = [p.symbol for p in scanner_top10 if p.symbol not in stock_long_symbols]
         self.bottom_close_symbols = [symbol for symbol in stock_short_symbols if symbol not in [s.symbol for s in scanner_bottom10]]
+        self.top_invest_symbols = [p.symbol for p in scanner_top10 if p.symbol not in stock_long_symbols]
         self.bottom_invest_symbols = [p.symbol for p in scanner_bottom10 if p.symbol not in stock_short_symbols]
+        self.top_inverted_symbols = [symbol for symbol in stock_long_symbols if symbol in [s.symbol for s in scanner_top10]]
+        self.bottom_inverted_symbols = [symbol for symbol in stock_short_symbols if symbol in [s.symbol for s in scanner_bottom10]]
 
 class OrderList:
     def __init__(self, capital_per_stock: float):
@@ -55,8 +58,8 @@ class OrderList:
         self._util = StockUtil()
         self.orders = []
 
-    def invest(self, scanner_pos: ScannerPosition):
-        order = self._util.create_invest_order(scanner_pos, capital_per_stock=self._capital_per_stock)
+    def invest(self, scanner_pos: ScannerPosition, inverted: bool):
+        order = self._util.create_invest_order(scanner_pos, capital_per_stock=self._capital_per_stock, inverted=inverted)
         self.orders.append(order)
     
     def close(self, ibkr_pos: IBKRPosition):
@@ -86,7 +89,7 @@ class PortfolioManager:
         for symbol in self._stock_list.top_invest_symbols + self._stock_list.bottom_invest_symbols:
             scan_pos = self._stock_list.scanner_invest_lookup.get(symbol)
             if scan_pos is not None:
-                self._order_list.invest(scanner_pos=scan_pos)
+                self._order_list.invest(scanner_pos=scan_pos, inverted=self._stock_list.inverted)
                 print(f"Investiere "f"{scan_pos.symbol:<6} perf={scan_pos.perf: 010.2f}% price={scan_pos.price: 010.2f} USD")
 
     def disconnect(self):

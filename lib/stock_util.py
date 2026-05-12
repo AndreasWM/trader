@@ -71,10 +71,10 @@ class StockUtil:
                 positions.append(IBKRPosition(symbol=position.symbol.replace(' ', '.'), position=int(position.position)))
             return positions
         
-    def create_invest_order(self, p: ScannerPosition, capital_per_stock: float) -> IBKROrder:
+    def create_invest_order(self, p: ScannerPosition, capital_per_stock: float, inverted: bool) -> IBKROrder:
         symbol=cast(str, p.symbol).replace('.', ' ')
         quantity = round(capital_per_stock / p.price)
-        action = "BUY" if p.perf > 0 else "SELL"
+        action = "BUY" if p.perf > 0 and not inverted else "SELL"
         print(f"Creating invest order for {symbol}: action={action}, quantity={quantity:.2f}, capital_per_stock={capital_per_stock:.2f}, price={p.price:.2f}")
         return IBKROrder(
             symbol=symbol,
