@@ -23,7 +23,6 @@ class StockList:
         max_number_of_stocks: int = 10
         max_length_scanner_list: int = 200
         performance: Performance = Performance.Pf_1M
-        self.inverted: bool = True
 
         price_eurusd = YfinanceTicker().get_eurusd()
         capital_reserve = 0 * price_eurusd
@@ -58,8 +57,8 @@ class OrderList:
         self._util = StockUtil()
         self.orders = []
 
-    def invest(self, scanner_pos: ScannerPosition, inverted: bool):
-        order = self._util.create_invest_order(scanner_pos, capital_per_stock=self._capital_per_stock, inverted=inverted)
+    def invest(self, scanner_pos: ScannerPosition):
+        order = self._util.create_invest_order(scanner_pos, capital_per_stock=self._capital_per_stock)
         self.orders.append(order)
     
     def close(self, ibkr_pos: IBKRPosition):
@@ -89,7 +88,7 @@ class PortfolioManager:
         for symbol in self._stock_list.top_invest_symbols + self._stock_list.bottom_invest_symbols:
             scan_pos = self._stock_list.scanner_invest_lookup.get(symbol)
             if scan_pos is not None:
-                self._order_list.invest(scanner_pos=scan_pos, inverted=self._stock_list.inverted)
+                self._order_list.invest(scanner_pos=scan_pos)
                 print(f"Investiere "f"{scan_pos.symbol:<6} perf={scan_pos.perf: 010.2f}% price={scan_pos.price: 010.2f} USD")
 
     def disconnect(self):
