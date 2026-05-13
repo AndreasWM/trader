@@ -76,7 +76,10 @@ class TV_Scanner:
         except Exception as e:
             print(f"❌ WSL-Cookie-Fehler: {e}")
             return None
-            
+        
+    def safe_float(self, value, default=0.0):
+        return float(value) if value is not None else default
+
     def scan_list(self, stock_list: list[str], performance: Performance) -> pd.DataFrame:
         print(f"📡 Scanne {len(stock_list)} Aktien bei TradingView...")
         
@@ -181,10 +184,10 @@ class TV_Scanner:
         pos_list = []
         for _, row in scanner_data.iterrows():
             symbol = row['symbol']
-            price = float(row['price'])
-            premarket_change = float(row['premarket_change'])
-            postmarket_change = float(row['postmarket_change'])
-            perf = float(row['perf'])
+            price = self.safe_float(row['price'])
+            premarket_change = self.safe_float(row['premarket_change'])
+            postmarket_change = self.safe_float(row['postmarket_change'])
+            perf = self.safe_float(row['perf'])
             pos = ScannerPosition(symbol=symbol, price=price, premarket_change=premarket_change, postmarket_change=postmarket_change, perf=perf)
             pos_list.append(pos)
 
