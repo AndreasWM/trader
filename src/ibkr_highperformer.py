@@ -13,57 +13,62 @@ from lib.yfinance_ticker import YfinanceTicker
 
 class StockList:
     def __init__(self, ibkr: MarketOrder):
-        ibkr = ibkr
-        util = StockUtil()
-        sc = TV_Scanner()
-        price_eurusd = YfinanceTicker().get_eurusd()
+        self._ibkr = ibkr
+        self._util = StockUtil()
+        self._sc = TV_Scanner()
+        self._price_eurusd = YfinanceTicker().get_eurusd()
 
-        min_market_cap = 100000000000
-        leverage: float = 1.0
-        number_of_stocks: int = 10
-        max_number_of_stocks: int = 10
-        performance: Performance = Performance.Pf_1M
-        capital_reserve = 0 * price_eurusd
+        self._set_params()
+        self._calculate_capital_per_stock()
+        self._set_stock_lists()
+        self._set_symbol_lists()
+        self._set_lookups()
+        self._create_analysis_file()
 
-        net_liquidation = ibkr.get_net_liquidation() * price_eurusd
-        investment_capacity=net_liquidation - capital_reserve
-        self.capital_per_stock = investment_capacity * leverage / max_number_of_stocks
+    def _set_params(self):
+        self._min_market_cap = 100000000000
+        self._leverage: float = 1.0
+        self._number_of_stocks: int = 10
+        self._max_number_of_stocks: int = 10
+        self._performance: Performance = Performance.Pf_1W
+        self._capital_reserve = 0 * self._price_eurusd
+        self._inverted = True
+    
+    def _calculate_capital_per_stock(self):
+        net_liquidation = self._ibkr.get_net_liquidation() * self._price_eurusd
+        investment_capacity=net_liquidation - self._capital_reserve
+        self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
+    
+    def _set_stock_lists(self):
+        self._stock_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
+        unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
+        self._scanner_list: list[ScannerPosition] = self._sc.query_us_largecaps(
+            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=self._performance,
+            length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
+    
+    def _set_symbol_lists(self):
+        stock_symbols = [p.symbol for p in self._stock_list]
+        self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_list]]
+        self._invest_symbols = [p.symbol for p in self._scanner_list]
 
-        self.stock_list: list[IBKRPosition] = util.ibkr_positions(trader=ibkr)
-        self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self.stock_list}
-        stock_long_symbols = [p.symbol for p in self.stock_list if p.position > 0]
-        stock_short_symbols = [p.symbol for p in self.stock_list if p.position < 0]
-        
-        unwanted_tickers = util.read_symbols(util.get_latest_watchlist_file(trader=ibkr))
-
-        self.scanner_long_list: list[ScannerPosition] = sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap, performance=performance,
-            length=number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
-
-        self.scanner_short_list: list[ScannerPosition] = sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap, performance=performance,
-            length=number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=True)
-
-        self.scanner_invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self.scanner_long_list + self.scanner_short_list}
-
-        str_chart_long = "+".join(f"{l.exchange}:{l.symbol}" for l in self.scanner_long_list)
-        str_chart_short = "+".join(f"{l.exchange}:{l.symbol}" for l in self.scanner_short_list)
-        watchlist_text = '\n'.join([str_chart_long, str_chart_short])
-        util.create_text_file(text=watchlist_text, filename='data/Analysis.txt')
-
-        self.top_close_symbols = [symbol for symbol in stock_long_symbols if symbol not in [s.symbol for s in self.scanner_long_list]]
-        self.bottom_close_symbols = [symbol for symbol in stock_short_symbols if symbol not in [s.symbol for s in self.scanner_short_list]]
-        self.top_invest_symbols = [p.symbol for p in self.scanner_long_list if p.symbol not in stock_long_symbols]
-        self.bottom_invest_symbols = [p.symbol for p in self.scanner_short_list if p.symbol not in stock_short_symbols]
-
+    def _set_lookups(self):
+        self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._stock_list}
+        self.invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_list}
+    
+    def _create_analysis_file(self):
+        str_top_stocks = "+".join(f"{l.exchange}:{l.symbol}" for l in self._scanner_list)
+        exchange_symbol_pairs = [f"{l.exchange}:{l.symbol}" for l in self._scanner_list]
+        watchlist_text = '\n'.join([str_top_stocks] + exchange_symbol_pairs)
+        self._util.create_text_file(text=watchlist_text, filename='data/Analysis.txt')
+    
 class OrderList:
     def __init__(self, capital_per_stock: float):
         self._capital_per_stock = capital_per_stock
         self._util = StockUtil()
         self.orders = []
 
-    def invest(self, scanner_pos: ScannerPosition):
-        order = self._util.create_invest_order(scanner_pos, capital_per_stock=self._capital_per_stock)
+    def invest(self, ibkr_pos: IBKRPosition | None, scanner_pos: ScannerPosition, inverted: bool):
+        order = self._util.create_invest_order(symbol=scanner_pos.symbol, position=ibkr_pos.position if ibkr_pos else 0, inverted=inverted, price=scanner_pos.price, capital_per_stock=self._capital_per_stock)
         self.orders.append(order)
     
     def close(self, ibkr_pos: IBKRPosition):
@@ -83,18 +88,20 @@ class PortfolioManager:
         self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders)
 
     def create_close_orders(self):
-        for symbol in self._stock_list.top_close_symbols + self._stock_list.bottom_close_symbols:
+        for symbol in self._stock_list._close_symbols:
             ibkr_pos = self._stock_list.stock_lookup.get(symbol)
             if ibkr_pos is not None:
                 self._order_list.close(ibkr_pos=ibkr_pos)
-                print(f"  Schließe "f"{ibkr_pos.symbol:<6} position={ibkr_pos.position: 010.2f}")
 
     def create_invest_orders(self):
-        for symbol in self._stock_list.top_invest_symbols + self._stock_list.bottom_invest_symbols:
-            scan_pos = self._stock_list.scanner_invest_lookup.get(symbol)
+        for symbol in self._stock_list._invest_symbols:
+            scan_pos = self._stock_list.invest_lookup.get(symbol)
             if scan_pos is not None:
-                self._order_list.invest(scanner_pos=scan_pos)
-                print(f"Investiere "f"{scan_pos.symbol:<6} perf={scan_pos.perf: 010.2f}% price={scan_pos.price: 010.2f} USD")
+                ibkr_pos = self._stock_list.stock_lookup.get(symbol)
+                if ibkr_pos is not None:
+                    self._order_list.invest(ibkr_pos=ibkr_pos, scanner_pos=scan_pos, inverted=self._stock_list._inverted)
+                else:
+                    self._order_list.invest(ibkr_pos=None, scanner_pos=scan_pos, inverted=self._stock_list._inverted)
 
     def disconnect(self):
         self._ibkr.disconnect()
