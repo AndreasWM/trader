@@ -187,8 +187,9 @@ class TV_Scanner:
             price = self.safe_float(row['price'])
             premarket_change = self.safe_float(row['premarket_change'])
             postmarket_change = self.safe_float(row['postmarket_change'])
+            exchange = row['exchange']
             perf = self.safe_float(row['perf'])
-            pos = ScannerPosition(symbol=symbol, price=price, premarket_change=premarket_change, postmarket_change=postmarket_change, perf=perf)
+            pos = ScannerPosition(symbol=symbol, price=price, premarket_change=premarket_change, postmarket_change=postmarket_change, exchange=exchange, perf=perf)
             pos_list.append(pos)
 
         return pos_list

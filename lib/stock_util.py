@@ -22,19 +22,16 @@ class StockUtil:
         else:
             return []
         
-    def create_watchlist_file(self, symbols: list[str], filename: str = 'watchlist.txt'):
+    def create_watchlist_file(self, symbols: list[str], filename: str):
         watchlist_lines = []
         if symbols:
             pairs = self.get_exchanges(symbols)
-            
-            # TradingView Format: EXCHANGE:SYMBOL
-            watchlist_lines = [f"{pair['exchange']}:{pair['symbol']}" for pair in pairs]
-            
-            # In Datei schreiben
-            with open(filename, 'w') as f:
-                f.write('\n'.join(watchlist_lines))
-            
-        return watchlist_lines
+            watchlist_lines = '\n'.join([f"{pair['exchange']}:{pair['symbol']}" for pair in pairs])
+            self.create_text_file(text=watchlist_lines, filename=filename)
+
+    def create_text_file(self, text: str, filename: str):
+        with open(filename, 'w') as f:
+            f.write(text)
 
     def read_symbols(self, path: str) -> list[str]:
         symbols = []

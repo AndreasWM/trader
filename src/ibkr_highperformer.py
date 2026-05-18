@@ -16,14 +16,13 @@ class StockList:
         ibkr = ibkr
         util = StockUtil()
         sc = TV_Scanner()
+        price_eurusd = YfinanceTicker().get_eurusd()
 
         min_market_cap = 100000000000
         leverage: float = 1.0
         number_of_stocks: int = 10
         max_number_of_stocks: int = 10
         performance: Performance = Performance.Pf_1M
-
-        price_eurusd = YfinanceTicker().get_eurusd()
         capital_reserve = 0 * price_eurusd
 
         net_liquidation = ibkr.get_net_liquidation() * price_eurusd
@@ -34,16 +33,24 @@ class StockList:
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self.stock_list}
         stock_long_symbols = [p.symbol for p in self.stock_list if p.position > 0]
         stock_short_symbols = [p.symbol for p in self.stock_list if p.position < 0]
-
+        
         unwanted_tickers = util.read_symbols(util.get_latest_watchlist_file(trader=ibkr))
+
         self.scanner_long_list: list[ScannerPosition] = sc.query_us_largecaps(
             tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap, performance=performance,
             length=number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
+
         self.scanner_short_list: list[ScannerPosition] = sc.query_us_largecaps(
             tickers_to_exclude=unwanted_tickers, market_cap=min_market_cap, performance=performance,
             length=number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=True)
+
         self.scanner_invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self.scanner_long_list + self.scanner_short_list}
-        
+
+        str_chart_long = "+".join(f"{l.exchange}:{l.symbol}" for l in self.scanner_long_list)
+        str_chart_short = "+".join(f"{l.exchange}:{l.symbol}" for l in self.scanner_short_list)
+        watchlist_text = '\n'.join([str_chart_long, str_chart_short])
+        util.create_text_file(text=watchlist_text, filename='data/Analysis.txt')
+
         self.top_close_symbols = [symbol for symbol in stock_long_symbols if symbol not in [s.symbol for s in self.scanner_long_list]]
         self.bottom_close_symbols = [symbol for symbol in stock_short_symbols if symbol not in [s.symbol for s in self.scanner_short_list]]
         self.top_invest_symbols = [p.symbol for p in self.scanner_long_list if p.symbol not in stock_long_symbols]
