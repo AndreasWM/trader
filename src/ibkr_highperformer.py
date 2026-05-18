@@ -80,7 +80,7 @@ class OrderList:
         self._util = StockUtil()
         self.orders = []
 
-    def invest(self, ibkr_pos: IBKRPosition | None, scanner_pos: ScannerPosition):
+    def invest(self, scanner_pos: ScannerPosition):
         order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, perf=scanner_pos.perf, capital_per_stock=self._capital_per_stock)
         self.orders.append(order)
     
@@ -110,11 +110,7 @@ class PortfolioManager:
         for symbol in self._stock_list._invest_symbols:
             scan_pos = self._stock_list.invest_lookup.get(symbol)
             if scan_pos is not None:
-                ibkr_pos = self._stock_list.stock_lookup.get(symbol)
-                if ibkr_pos is not None:
-                    self._order_list.invest(ibkr_pos=ibkr_pos, scanner_pos=scan_pos)
-                else:
-                    self._order_list.invest(ibkr_pos=None, scanner_pos=scan_pos)
+                self._order_list.invest(scanner_pos=scan_pos)
 
     def disconnect(self):
         self._ibkr.disconnect()
