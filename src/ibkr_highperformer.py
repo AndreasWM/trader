@@ -42,9 +42,13 @@ class StockList:
     def _set_stock_lists(self):
         self._stock_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
         unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
-        self._scanner_list: list[ScannerPosition] = self._sc.query_us_largecaps(
+        self._scanner_long_list: list[ScannerPosition] = self._sc.query_us_largecaps(
             tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=self._performance,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
+        self._scanner_short_list: list[ScannerPosition] = self._sc.query_us_largecaps(
+            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=self._performance,
+            length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=True)
+        self._scanner_list: list[ScannerPosition] = self._scanner_long_list + self._scanner_short_list
     
     def _set_symbol_lists(self):
         stock_symbols = [p.symbol for p in self._stock_list]
@@ -60,10 +64,14 @@ class StockList:
         self.invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_list}
     
     def _create_analysis_file(self):
-        str_top_stocks = "+".join(f"{l.exchange}:{l.symbol}" for l in self._scanner_list)
-        exchange_symbol_pairs = [f"{l.exchange}:{l.symbol}" for l in self._scanner_list]
+        str_top_stocks_long = "+".join(f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list)
+        exchange_symbol_pairs_long = [f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list]
+        str_top_stocks_short = "+".join(f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list)
+        exchange_symbol_pairs_short = [f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list]
         index_pairs = ["FX:NAS100", "FX:SPX500"]
-        watchlist_text = '\n'.join([str_top_stocks] + exchange_symbol_pairs + index_pairs)
+        watchlist_text = '\n'.join([str_top_stocks_long] + exchange_symbol_pairs_long
+                                   + [str_top_stocks_short] + exchange_symbol_pairs_short
+                                   + index_pairs)
         self._util.create_text_file(text=watchlist_text, filename='data/Analysis.txt')
     
 class OrderList:
@@ -73,7 +81,7 @@ class OrderList:
         self.orders = []
 
     def invest(self, ibkr_pos: IBKRPosition | None, scanner_pos: ScannerPosition):
-        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, capital_per_stock=self._capital_per_stock)
+        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, perf=scanner_pos.perf, capital_per_stock=self._capital_per_stock)
         self.orders.append(order)
     
     def close(self, ibkr_pos: IBKRPosition):
