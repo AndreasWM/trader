@@ -90,23 +90,17 @@ class StockUtil:
             action=action
         )
     
-    def execute_orders(self, trader: MarketOrder, orders: list[IBKROrder]):
+    def execute_orders(self, trader: MarketOrder, orders: list[IBKROrder], skip_confirm: bool = False):
         if not orders:
             print("\nℹ️ Keine neuen Orders zu erstellen.")
             return
         else:
             print(f"\n📋 Ausführen von {len(orders)} Orders")
-            response = input("Proceed? [Y]/N: ").strip().upper() or "Y"
+            if not skip_confirm:
+                response = input("Proceed? [Y]/N: ").strip().upper() or "Y"
+            else:
+                response = "Y"
             if response == 'Y':
                 trader.execute(orders)
             else:
                 print("Abgebrochen durch Benutzer.")
-
-    def ibkr_close_all(self, trader: MarketOrder):
-
-        close_orders = [self.create_close_order(cast(IBKRPosition, p)) for p in self.ibkr_positions(trader=trader)]
-        if not close_orders:
-            print("ℹ️  Keine offenen Positionen gefunden.")
-        else:
-            print(f"📊 {len(close_orders)} Position(en) werden geschlossen.\n")
-            self.execute_orders(trader=trader, orders=close_orders)
