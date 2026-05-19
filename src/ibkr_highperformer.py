@@ -30,8 +30,8 @@ class StockList:
         self._leverage: float = 1.0
         self._number_of_stocks: int = 10
         self._max_number_of_stocks: int = 10
-        self._performance: Performance = Performance.Pf_1W
         self._capital_reserve = 0 * self._price_eurusd
+        self._always_short = True
         self._close_all = False
     
     def _calculate_capital_per_stock(self):
@@ -43,10 +43,10 @@ class StockList:
         self._stock_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
         unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
         self._scanner_long_list: list[ScannerPosition] = self._sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=self._performance,
+            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_YTD,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
         self._scanner_short_list: list[ScannerPosition] = self._sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=self._performance,
+            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_1M,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=True)
         self._scanner_list: list[ScannerPosition] = self._scanner_long_list + self._scanner_short_list
     
@@ -64,24 +64,30 @@ class StockList:
         self.invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_list}
     
     def _create_analysis_file(self):
-        str_top_stocks_long = "+".join(f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list)
+        self.long_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_long_list}
+        str_stocks_long = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._stock_list if self.long_lookup.get(p.symbol) is not None)
         exchange_symbol_pairs_long = [f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list]
-        str_top_stocks_short = "+".join(f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list)
+
+        self.short_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_short_list}
+        str_stocks_short = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._stock_list if self.short_lookup.get(p.symbol) is not None)
         exchange_symbol_pairs_short = [f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list]
+
         index_pairs = ["FX:NAS100", "FX:SPX500"]
-        watchlist_text = '\n'.join([str_top_stocks_long] + exchange_symbol_pairs_long
-                                   + [str_top_stocks_short] + exchange_symbol_pairs_short
+
+        watchlist_text = '\n'.join([str_stocks_long] + exchange_symbol_pairs_long
+                                   + [str_stocks_short] + exchange_symbol_pairs_short
                                    + index_pairs)
         self._util.create_text_file(text=watchlist_text, filename='data/Analysis.txt')
     
 class OrderList:
-    def __init__(self, capital_per_stock: float):
+    def __init__(self, capital_per_stock: float, always_short: bool):
         self._capital_per_stock = capital_per_stock
+        self._always_short = always_short
         self._util = StockUtil()
         self.orders = []
 
     def invest(self, scanner_pos: ScannerPosition):
-        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, perf=scanner_pos.perf, capital_per_stock=self._capital_per_stock)
+        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, perf=scanner_pos.perf, capital_per_stock=self._capital_per_stock, always_short=self._always_short)
         self.orders.append(order)
     
     def close(self, ibkr_pos: IBKRPosition):
@@ -89,16 +95,17 @@ class OrderList:
         self.orders.append(order)
 
 class PortfolioManager:
-    def __init__(self):
+    def __init__(self, skip_confirm: bool = False):
         self._ibkr = MarketOrder()
         self._util = StockUtil()
         self._stock_list: StockList = StockList(ibkr=self._ibkr)
-        self._order_list: OrderList = OrderList(capital_per_stock=self._stock_list.capital_per_stock)
+        self._order_list: OrderList = OrderList(capital_per_stock=self._stock_list.capital_per_stock, always_short=self._stock_list._always_short)
+        self._skip_confirm = skip_confirm
 
     def invest(self):
         self.create_close_orders()
         self.create_invest_orders()
-        self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders)
+        self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
 
     def create_close_orders(self):
         for symbol in self._stock_list._close_symbols:
@@ -116,7 +123,8 @@ class PortfolioManager:
         self._ibkr.disconnect()
 
 def main():
-    manager = PortfolioManager()
+    skip_confirm = '-y' in sys.argv or '-Y' in sys.argv
+    manager = PortfolioManager(skip_confirm=skip_confirm)
     manager.invest()
     manager.disconnect()
 

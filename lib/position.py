@@ -17,12 +17,13 @@ class Position:
         return hash(self.symbol)
 
 class IBKRPosition(Position):
-    def __init__(self, symbol: str, position: int = 0):
+    def __init__(self, symbol: str, exchange: str, position: int = 0):
         super().__init__(symbol)
+        self.exchange = exchange
         self.position = position
     
     def __str__(self):
-        return f"IBKRPosition(symbol={self.symbol}, position={self.position})"
+        return f"IBKRPosition(symbol={self.symbol}, exchange={self.exchange}, position={self.position})"
     
     def __repr__(self):
         return self.__str__()

@@ -18,6 +18,7 @@ class Performance(Enum):
     Pf_1M = "Perf.1M"
     Pf_1W = "Perf.W"
     Pf_Y = "Perf.Y"
+    Pf_YTD = "Perf.YTD"
 
     def __str__(self):
         return self.value
