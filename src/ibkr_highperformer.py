@@ -43,10 +43,10 @@ class StockList:
         self._stock_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
         unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
         self._scanner_long_list: list[ScannerPosition] = self._sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_YTD,
+            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_1M,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
         self._scanner_short_list: list[ScannerPosition] = self._sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_YTD,
+            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_1M,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=True)
         self._scanner_list: list[ScannerPosition] = self._scanner_long_list + self._scanner_short_list
     
