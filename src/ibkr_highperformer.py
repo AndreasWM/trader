@@ -31,7 +31,7 @@ class StockList:
         self._number_of_stocks: int = 10
         self._max_number_of_stocks: int = 10
         self._capital_reserve = 0 * self._price_eurusd
-        self._always_short = True
+        self._always_short = False
         self._close_all = False
     
     def _calculate_capital_per_stock(self):
