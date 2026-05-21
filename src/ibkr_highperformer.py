@@ -5,12 +5,16 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
+from enum import Enum
 from lib.ibkr_market_order import MarketOrder
 from lib.tv_scanner import TV_Scanner, Performance
 from lib.stock_util import StockUtil
 from lib.position import IBKRPosition, ScannerPosition
 from lib.yfinance_ticker import YfinanceTicker
 
+class Strategy(Enum):
+    LARGE_CAP = "large_cap"
+    MID_CAP = "mid_cap"
 class StockList:
     def __init__(self, ibkr: MarketOrder):
         self._ibkr = ibkr
@@ -26,7 +30,9 @@ class StockList:
         self._create_analysis_file()
 
     def _set_params(self):
-        self._min_market_cap = 100000000000
+        self._strategy = Strategy.MID_CAP
+        self._mid_cap_value   = 10000000000
+        self._large_cap_value = 100000000000
         self._leverage: float = 1.0
         self._number_of_stocks: int = 10
         self._max_number_of_stocks: int = 10
@@ -39,16 +45,24 @@ class StockList:
         investment_capacity=net_liquidation - self._capital_reserve
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
     
+    def query(self, min_market_cap: int, perf_1m_value: float | None, performance: Performance, ascending: bool) -> list[ScannerPosition]:
+        scanner_list: list[ScannerPosition] = self._sc.query_us_largecaps(
+            tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap, perf_1m_value=perf_1m_value, performance=performance,
+            length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=ascending)
+        return scanner_list
+
     def _set_stock_lists(self):
         self._stock_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
-        unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
-        self._scanner_long_list: list[ScannerPosition] = self._sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_1M,
-            length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=False)
-        self._scanner_short_list: list[ScannerPosition] = self._sc.query_us_largecaps(
-            tickers_to_exclude=unwanted_tickers, market_cap=self._min_market_cap, performance=Performance.Pf_1M,
-            length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, ascending=True)
-        self._scanner_list: list[ScannerPosition] = self._scanner_long_list + self._scanner_short_list
+        self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
+
+        min_market_cap = self._mid_cap_value if self._strategy == Strategy.MID_CAP else self._large_cap_value if self._strategy == Strategy.LARGE_CAP else 0
+        long_perf_value = 10 if self._strategy == Strategy.MID_CAP else None
+        short_perf_value = -10 if self._strategy == Strategy.MID_CAP else None
+        performance = Performance.Pf_5Y if self._strategy == Strategy.MID_CAP else Performance.Pf_1M
+
+        self._scanner_long_list = self.query(min_market_cap=min_market_cap, perf_1m_value=long_perf_value, performance=performance, ascending=False)
+        self._scanner_short_list = self.query(min_market_cap=min_market_cap, perf_1m_value=short_perf_value, performance=performance, ascending=True)
+        self._scanner_list = self._scanner_long_list + self._scanner_short_list
     
     def _set_symbol_lists(self):
         stock_symbols = [p.symbol for p in self._stock_list]

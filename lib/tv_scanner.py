@@ -19,6 +19,7 @@ class Performance(Enum):
     Pf_1W = "Perf.W"
     Pf_Y = "Perf.Y"
     Pf_YTD = "Perf.YTD"
+    Pf_5Y = "Perf.5Y"
 
     def __str__(self):
         return self.value
@@ -80,6 +81,9 @@ class TV_Scanner:
         
     def safe_float(self, value, default=0.0):
         return float(value) if value is not None else default
+    
+    def always_true(self):
+        return Column("exchange") != "INVALID"
 
     def scan_list(self, stock_list: list[str], performance: Performance) -> pd.DataFrame:
         print(f"📡 Scanne {len(stock_list)} Aktien bei TradingView...")
@@ -139,20 +143,23 @@ class TV_Scanner:
                 print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
                 return scanner_data
 
-    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int, performance: Performance,
+    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int, perf_1m_value: float | None, performance: Performance,
                            length: int, capital_per_stock: float, ascending: bool) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type') == 'stock'
         cond_typespec = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
-
+        cond_perf_1m =      Column('Perf.1M') > perf_1m_value if perf_1m_value is not None and perf_1m_value > 0 \
+                       else Column('Perf.1M') < perf_1m_value if perf_1m_value is not None and perf_1m_value < 0 \
+                       else self.always_true()
         conditions = [
             cond_limit_size,
             cond_stocktype,
             cond_typespec,
             cond_exchange,
             cond_market_cap,
+            cond_perf_1m,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
