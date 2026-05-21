@@ -39,6 +39,7 @@ class StockList:
         self._capital_reserve = 0 * self._price_eurusd
         self._always_short = False
         self._close_all = False
+        self._performance_threshold = 5
     
     def _calculate_capital_per_stock(self):
         net_liquidation = self._ibkr.get_net_liquidation() * self._price_eurusd
@@ -56,8 +57,8 @@ class StockList:
         self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
 
         min_market_cap = self._mid_cap_value if self._strategy == Strategy.MID_CAP else self._large_cap_value if self._strategy == Strategy.LARGE_CAP else 0
-        long_perf_value = 10 if self._strategy == Strategy.MID_CAP else None
-        short_perf_value = -10 if self._strategy == Strategy.MID_CAP else None
+        long_perf_value = self._performance_threshold if self._strategy == Strategy.MID_CAP else None
+        short_perf_value = -self._performance_threshold if self._strategy == Strategy.MID_CAP else None
         performance = Performance.Pf_5Y if self._strategy == Strategy.MID_CAP else Performance.Pf_1M
 
         self._scanner_long_list = self.query(min_market_cap=min_market_cap, perf_1m_value=long_perf_value, performance=performance, ascending=False)
@@ -86,7 +87,7 @@ class StockList:
         str_stocks_short = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._stock_list if self.short_lookup.get(p.symbol) is not None)
         exchange_symbol_pairs_short = [f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list]
 
-        index_pairs = ["FX:NAS100", "FX:SPX500"]
+        index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
 
         watchlist_text = '\n'.join([str_stocks_long] + exchange_symbol_pairs_long
                                    + [str_stocks_short] + exchange_symbol_pairs_short
