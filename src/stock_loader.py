@@ -2,11 +2,9 @@ import os
 import sys
 import yfinance as yf
 import pandas as pd
-
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-
 from lib.ibkr_market_order import MarketOrder
 from lib.tv_scanner import TV_Scanner
 from lib.stock_util import StockUtil
@@ -19,23 +17,20 @@ class StockLoader:
     
     def download_in_batches(self, tickers: list[str], batch_size: int = 200, **kwargs) -> pd.DataFrame:
         all_data = []
-        num_batches = (len(tickers) + batch_size - 1) // batch_size  # ✅ korrekte Batch-Anzahl
-
+        num_batches = (len(tickers) + batch_size - 1) // batch_size
         for i in range(0, len(tickers), batch_size):
             print(f"Downloading batch {i // batch_size + 1} of {num_batches}")
             batch = tickers[i:i + batch_size]
             
             df = yf.download(batch, **kwargs, progress=False)
             
-            if df is None or df.empty:  # ✅ None-Check
+            if df is None or df.empty:
                 print(f"  ⚠️  No data for batch {i // batch_size + 1}, skipping...")
                 continue
             
             all_data.append(df["Close"])
-
         if not all_data:
             raise ValueError("No data downloaded for any batch.")
-
         return pd.concat(all_data, axis=1)
 
     def load_symbols(self) -> list[str]:
@@ -60,13 +55,40 @@ class StockLoader:
         except Exception as e:
             print(f"⚠️  Fehler beim Laden der Preise: {e}")
             return pd.DataFrame()
-            
+
+    def to_long_format(self, prices: pd.DataFrame) -> pd.DataFrame:
+        """Wandelt den Wide-DataFrame (Datum x Symbol) in eine Long-Tabelle
+        mit den Spalten symbol, date, price um."""
+        if prices.empty:
+            return pd.DataFrame(columns=["symbol", "date", "price"])
+
+        # Falls der Index noch kein reines Datum ist, normalisieren
+        prices.index = pd.to_datetime(prices.index).normalize()
+
+        long_df = (
+            prices
+            .reset_index()                          # Datum wird zur Spalte
+            .rename(columns={"Date": "date"})       # yfinance nennt den Index "Date"
+            .melt(id_vars="date",                   # von Wide nach Long
+                  var_name="symbol",
+                  value_name="price")
+            .dropna(subset=["price"])               # Zeilen ohne Kurs entfernen
+            [["symbol", "date", "price"]]           # Spaltenreihenfolge festlegen
+            .sort_values(["symbol", "date"])
+            .reset_index(drop=True)
+        )
+
+        return long_df
+
 def main():
     loader = StockLoader()
     symbols = loader.load_symbols()
     prices = loader.load_prices(symbols)
-    print(f"✅ Gefundene Preise: {len(prices.columns)}")
-    print(prices)
+
+    long_df = loader.to_long_format(prices)
+
+    print(f"\n✅ Tabelle mit {len(long_df):,} Zeilen und {long_df['symbol'].nunique()} Symbolen:")
+    print(long_df)
 
 if __name__ == "__main__":
     main()
