@@ -54,7 +54,7 @@ class StockList:
 
     def _set_stock_lists(self):
         self._stock_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
-        self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(trader=self._ibkr))
+        self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(self._util.get_data_dir(trader=self._ibkr)))
 
         min_market_cap = self._mid_cap_value if self._strategy == Strategy.MID_CAP else self._large_cap_value if self._strategy == Strategy.LARGE_CAP else 0
         long_perf_value = self._performance_threshold if self._strategy == Strategy.MID_CAP else None
@@ -80,11 +80,11 @@ class StockList:
     
     def _create_analysis_file(self):
         self.long_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_long_list}
-        str_stocks_long = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._stock_list if self.long_lookup.get(p.symbol) is not None)
+        str_stocks_long = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._stock_list if p.position > 0)
         exchange_symbol_pairs_long = [f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list]
 
         self.short_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_short_list}
-        str_stocks_short = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._stock_list if self.short_lookup.get(p.symbol) is not None)
+        str_stocks_short = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._stock_list if p.position < 0)
         exchange_symbol_pairs_short = [f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list]
 
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]

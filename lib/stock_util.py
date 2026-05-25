@@ -3,7 +3,7 @@ import sys
 import pandas as pd
 import csv
 import glob
-from typing import cast
+from typing import Hashable, cast, Any, List, Dict
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -14,7 +14,7 @@ from lib.ibkr_market_order import IBKROrder, MarketOrder
 from lib.position import IBKRPosition, ScannerPosition
 
 class StockUtil:
-    def get_exchanges(self, symbols: list[str]) -> list[dict]:
+    def get_exchanges(self, symbols: List[str]) -> List[Dict[Hashable, Any]]:
         sc = TV_Scanner()
         results = sc.scan_list(stock_list=symbols, performance=Performance.Pf_1M)
         if isinstance(results, pd.DataFrame) and not results.empty:
@@ -44,17 +44,25 @@ class StockUtil:
                     symbols.append(line['Symbol'])
         
         return symbols
+    
+    def get_data_dir_linux(self) -> str:
+        return '/home/andreas/github/trader/data'
 
-    def get_latest_watchlist_file(self, trader: MarketOrder) -> str:
+    def _get_data_dir_windows(self) -> str:
+        return '/mnt/c/Users/moell/Downloads/trader/data'
+
+    def get_data_dir(self, trader: MarketOrder) -> str:
         if trader.detect_ib_host() == "127.0.0.1":
-            directory = '/home/andreas/github/trader/data'
+            return self.get_data_dir_linux()
         else:
-            directory = '/mnt/c/Users/moell/Downloads/trader/data'
-        pattern = os.path.join(directory, 'Watchlist*.csv')
+            return self._get_data_dir_windows()
+
+    def get_latest_watchlist_file(self, dir: str) -> str:
+        pattern = os.path.join(dir, 'Watchlist*.csv')
         files = glob.glob(pattern)
         
         if not files:
-            raise FileNotFoundError(f"Keine Datei mit Muster 'Watchlist*.csv' in {directory}")
+            raise FileNotFoundError(f"Keine Datei mit Muster 'Watchlist*.csv' in {dir}")
         
         return max(files, key=os.path.getmtime)
     
