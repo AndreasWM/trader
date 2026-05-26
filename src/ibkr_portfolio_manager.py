@@ -34,8 +34,8 @@ class StockList:
         self._mid_cap_value   = 10000000000
         self._large_cap_value = 100000000000
         self._leverage: float = 1.0
-        self._number_of_stocks: int = 10
-        self._max_number_of_stocks: int = 10
+        self._number_of_stocks: int = 20
+        self._max_number_of_stocks: int = 20
         self._capital_reserve = 0 * self._price_eurusd
         self._always_short = False
         self._close_all = False
@@ -59,7 +59,7 @@ class StockList:
         min_market_cap = self._mid_cap_value if self._strategy == Strategy.MID_CAP else self._large_cap_value if self._strategy == Strategy.LARGE_CAP else 0
         long_perf_value = self._performance_threshold if self._strategy == Strategy.MID_CAP else None
         short_perf_value = -self._performance_threshold if self._strategy == Strategy.MID_CAP else None
-        performance = Performance.Pf_5Y if self._strategy == Strategy.MID_CAP else Performance.Pf_1M
+        performance = Performance.Pf_YTD if self._strategy == Strategy.MID_CAP else Performance.Pf_1M
 
         self._scanner_long_list = self.query(min_market_cap=min_market_cap, perf_1m_value=long_perf_value, performance=performance, ascending=False)
         self._scanner_short_list = self.query(min_market_cap=min_market_cap, perf_1m_value=short_perf_value, performance=performance, ascending=True)

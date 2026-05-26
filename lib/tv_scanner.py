@@ -159,7 +159,7 @@ class TV_Scanner:
             cond_typespec,
             cond_exchange,
             cond_market_cap,
-            cond_perf_1m,
+            # cond_perf_1m,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -201,3 +201,43 @@ class TV_Scanner:
             pos_list.append(pos)
 
         return pos_list
+
+    def query_us_symbols(self, tickers_to_exclude: list[str], market_cap: int, length: int) -> list[str]:
+        cond_stocktype = Column('type') == 'stock'
+        cond_typespec = Column('subtype') != 'preferred'
+        cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
+        cond_market_cap = Column('market_cap_basic') > market_cap
+        conditions = [
+            cond_stocktype,
+            cond_typespec,
+            cond_exchange,
+            cond_market_cap,
+        ]
+        if tickers_to_exclude:
+            conditions.append(Column('name').not_in(tickers_to_exclude))
+        
+        q = Query() \
+            .select(
+                'name',
+                'type',
+                'subtype',
+                'exchange',
+                'market_cap_basic',
+            ) \
+            .where(*conditions) \
+            .order_by('market_cap_basic', ascending=False) \
+            .limit(length)
+        
+        _, scanner_data = q.get_scanner_data(cookies=self._cookies)
+        
+        scanner_data = scanner_data.drop(columns=['ticker'])
+        scanner_data = scanner_data.rename(columns={
+            "name": "symbol",
+        })
+        
+        symbol_list = []
+        for _, row in scanner_data.iterrows():
+            symbol = row['symbol']
+            symbol_list.append(symbol)
+
+        return symbol_list
