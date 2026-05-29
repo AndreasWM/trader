@@ -15,24 +15,25 @@ from lib.tv_scanner import TV_Scanner
 from lib.stock_util import StockUtil
 
 # ── Verbindungsparameter ────────────────────────────────────────────────────────
-DB_USER     = "dein_user"
-DB_PASSWORD = "dein_passwort"
-DB_DSN      = "localhost:1521/XEPDB1"   # host:port/service_name
+DB_USER     = "TRADER"
+DB_PASSWORD = os.getenv("ORACLE_TRADER_PW")
+DB_DSN      = "(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.eu-frankfurt-1.oraclecloud.com))(connect_data=(service_name=g0c5cfd076541df_iweaacmgy3oa0pcw_low.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))"
 
 # Tuning-Parameter
 CHUNK_SIZE       = 50_000   # Zeilen pro executemany-Aufruf
 COMMIT_EVERY     = 500_000  # Zeilen zwischen Commits
 POOL_MIN         = 2        # Minimale Verbindungen im Pool
 POOL_MAX         = 5        # Maximale Verbindungen im Pool
+MAX_STOCKS       = 1000     # Max. Anzahl zu ladender Aktien (für Scanner-Query)
 
 
 class StockLoader:
     def __init__(self):
         self._util = StockUtil()
         self._sc   = TV_Scanner()
-        self._unwanted_tickers = self._util.read_symbols(
-            self._util.get_latest_watchlist_file(self._util.get_data_dir_linux())
-        )
+        red_list = self._util.read_symbols(self._util.get_latest_watchlist_file(self._util.get_data_dir_linux()))
+        other_unwanted_stocks = ["SNDK"]
+        self._unwanted_tickers = red_list #+ other_unwanted_stocks
         self._pool: oracledb.ConnectionPool | None = None
 
     # ── Connection Pool ─────────────────────────────────────────────────────────
@@ -73,11 +74,13 @@ class StockLoader:
         return pd.concat(all_data, axis=1)
 
     def load_symbols(self) -> list[str]:
-        return self._sc.query_us_symbols(
+        symbols = self._sc.query_us_symbols(
             tickers_to_exclude=self._unwanted_tickers,
             market_cap=10_000_000_000,
-            length=5
+            length=MAX_STOCKS
         )
+        symbols = [s.replace(".", "-") for s in symbols if "/" not in s]
+        return symbols
 
     def load_prices(self, symbols: list[str]) -> pd.DataFrame:
         if not symbols:
@@ -100,18 +103,18 @@ class StockLoader:
     # ── Transformation ──────────────────────────────────────────────────────────
 
     def to_long_format(self, prices: pd.DataFrame) -> pd.DataFrame:
-        """Wide → Long mit den Spalten symbol, date, price."""
+        """Wide → Long mit den Spalten symbol, price_date, price."""
         if prices.empty:
-            return pd.DataFrame(columns=["symbol", "date", "price"])
+            return pd.DataFrame(columns=["symbol", "price_date", "price"])
         prices.index = pd.to_datetime(prices.index).normalize()
         long_df = (
             prices
             .reset_index()
-            .rename(columns={"Date": "date"})
-            .melt(id_vars="date", var_name="symbol", value_name="price")
+            .rename(columns={"Date": "price_date"})
+            .melt(id_vars="price_date", var_name="symbol", value_name="price")
             .dropna(subset=["price"])
-            [["symbol", "date", "price"]]
-            .sort_values(["symbol", "date"])
+            [["symbol", "price_date", "price"]]
+            .sort_values(["symbol", "price_date"])
             .reset_index(drop=True)
         )
         return long_df
@@ -129,9 +132,9 @@ class StockLoader:
             yield chunk
 
     def _prepare_rows(self, long_df: pd.DataFrame) -> list[tuple]:
-        """Konvertiert den DataFrame in eine Liste von (symbol, date, price)-Tupeln."""
+        """Konvertiert den DataFrame in eine Liste von (symbol, price_date, price)-Tupeln."""
         return [
-            (row.symbol, row.date.date(), float(row.price))
+            (row.symbol, row.price_date.date(), pd.to_numeric(row.price, errors='coerce'))
             for row in long_df.itertuples(index=False)
         ]
 
@@ -159,7 +162,7 @@ class StockLoader:
         print(f"💾 Schreibe {total:,} Zeilen in Tabelle '{table_name}' …")
 
         rows = self._prepare_rows(long_df)
-        sql  = f"INSERT INTO {table_name} (symbol, date, price) VALUES (:1, :2, :3)"
+        sql  = f"INSERT INTO {table_name} (symbol, price_date, price) VALUES (:1, :2, :3)"
 
         pool = self._get_pool()
         with pool.acquire() as conn:
@@ -169,7 +172,7 @@ class StockLoader:
             # Bind-Typen einmalig deklarieren → weniger Overhead pro Zeile
             cursor.setinputsizes(
                 oracledb.DB_TYPE_VARCHAR,   # symbol
-                oracledb.DB_TYPE_DATE,      # date
+                oracledb.DB_TYPE_DATE,      # price_date
                 oracledb.DB_TYPE_BINARY_DOUBLE,  # price
             )
 
@@ -205,14 +208,14 @@ class StockLoader:
 # ── DDL (zur Referenz) ──────────────────────────────────────────────────────────
 CREATE_TABLE_SQL = """
 CREATE TABLE stock_prices (
-    symbol  VARCHAR2(20)        NOT NULL,
-    date    DATE                NOT NULL,
-    price   BINARY_DOUBLE,
-    CONSTRAINT pk_stock_prices PRIMARY KEY (symbol, date)
+    symbol      VARCHAR2(20)        NOT NULL,
+    price_date  DATE                NOT NULL,
+    price       BINARY_DOUBLE,
+    CONSTRAINT pk_stock_prices PRIMARY KEY (symbol, price_date)
 );
 
 -- Optional: Index für Datumsabfragen
-CREATE INDEX ix_stock_prices_date ON stock_prices (date);
+CREATE INDEX ix_stock_prices_date ON stock_prices (price_date);
 """
 
 
