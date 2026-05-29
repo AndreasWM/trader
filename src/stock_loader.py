@@ -3,7 +3,6 @@ import sys
 import yfinance as yf
 import pandas as pd
 import oracledb
-from concurrent.futures import ThreadPoolExecutor
 from itertools import islice
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -100,12 +99,37 @@ class StockLoader:
             print(f"⚠️  Fehler beim Laden der Preise: {e}")
             return pd.DataFrame()
 
+    def load_market_caps(self, symbols: list[str]) -> dict[str, float | None]:
+        """Ruft die aktuelle Market Cap für jedes Symbol via yfinance ab.
+        Gibt ein Dict {symbol: market_cap_or_None} zurück."""
+        print(f"📥 Lade Market Caps für {len(symbols)} Symbole...")
+        results: dict[str, float | None] = {}
+        for symbol in symbols:
+            try:
+                results[symbol] = yf.Ticker(symbol).fast_info.market_cap
+            except Exception:
+                results[symbol] = None
+        fetched = sum(1 for v in results.values() if v is not None)
+        print(f"✅ Market Caps geladen: {fetched} vorhanden, {len(results) - fetched} fehlend (None)")
+        return results
+
     # ── Transformation ──────────────────────────────────────────────────────────
 
-    def to_long_format(self, prices: pd.DataFrame) -> pd.DataFrame:
-        """Wide → Long mit den Spalten symbol, price_date, price."""
+    def to_long_format(
+        self,
+        prices: pd.DataFrame,
+        market_caps: dict[str, float | None] | None = None,
+    ) -> pd.DataFrame:
+        """
+        Wide → Long mit den Spalten symbol, price_date, price, market_cap.
+
+        market_caps  – optionales Dict {symbol: float|None}.
+                       Fehlt es oder enthält es keinen Eintrag für ein Symbol,
+                       wird market_cap auf NULL gesetzt.
+        """
         if prices.empty:
-            return pd.DataFrame(columns=["symbol", "price_date", "price"])
+            return pd.DataFrame(columns=["symbol", "price_date", "price", "market_cap"])
+
         prices.index = pd.to_datetime(prices.index).normalize()
         long_df = (
             prices
@@ -117,6 +141,13 @@ class StockLoader:
             .sort_values(["symbol", "price_date"])
             .reset_index(drop=True)
         )
+
+        # Market Cap als konstante Spalte je Symbol hinzufügen
+        if market_caps:
+            long_df["market_cap"] = long_df["symbol"].map(market_caps)
+        else:
+            long_df["market_cap"] = None
+
         return long_df
 
     # ── Oracle Bulk-Insert ──────────────────────────────────────────────────────
@@ -132,9 +163,17 @@ class StockLoader:
             yield chunk
 
     def _prepare_rows(self, long_df: pd.DataFrame) -> list[tuple]:
-        """Konvertiert den DataFrame in eine Liste von (symbol, price_date, price)-Tupeln."""
+        """
+        Konvertiert den DataFrame in eine Liste von
+        (symbol, price_date, price, market_cap)-Tupeln.
+        """
         return [
-            (row.symbol, row.price_date.date(), pd.to_numeric(row.price, errors='coerce'))
+            (
+                row.symbol,
+                row.price_date.date(),
+                pd.to_numeric(row.price, errors='coerce'),
+                float(row.market_cap) if pd.notna(row.market_cap) else None,
+            )
             for row in long_df.itertuples(index=False)
         ]
 
@@ -162,7 +201,11 @@ class StockLoader:
         print(f"💾 Schreibe {total:,} Zeilen in Tabelle '{table_name}' …")
 
         rows = self._prepare_rows(long_df)
-        sql  = f"INSERT INTO {table_name} (symbol, price_date, price) VALUES (:1, :2, :3)"
+        sql  = (
+            f"INSERT INTO {table_name} "
+            f"(symbol, price_date, price, market_cap) "
+            f"VALUES (:1, :2, :3, :4)"
+        )
 
         pool = self._get_pool()
         with pool.acquire() as conn:
@@ -171,9 +214,10 @@ class StockLoader:
 
             # Bind-Typen einmalig deklarieren → weniger Overhead pro Zeile
             cursor.setinputsizes(
-                oracledb.DB_TYPE_VARCHAR,   # symbol
-                oracledb.DB_TYPE_DATE,      # price_date
-                oracledb.DB_TYPE_BINARY_DOUBLE,  # price
+                oracledb.DB_TYPE_VARCHAR,            # symbol
+                oracledb.DB_TYPE_DATE,               # price_date
+                oracledb.DB_TYPE_BINARY_DOUBLE,      # price
+                oracledb.DB_TYPE_BINARY_DOUBLE,      # market_cap (NULL-fähig)
             )
 
             if truncate_first:
@@ -211,11 +255,15 @@ CREATE TABLE stock_prices (
     symbol      VARCHAR2(20)        NOT NULL,
     price_date  DATE                NOT NULL,
     price       BINARY_DOUBLE,
+    market_cap  BINARY_DOUBLE,                    -- aktuelle Market Cap in USD
     CONSTRAINT pk_stock_prices PRIMARY KEY (symbol, price_date)
 );
 
 -- Optional: Index für Datumsabfragen
 CREATE INDEX ix_stock_prices_date ON stock_prices (price_date);
+
+-- Optional: existierende Tabelle um die Spalte erweitern
+-- ALTER TABLE stock_prices ADD (market_cap BINARY_DOUBLE);
 """
 
 
@@ -224,9 +272,10 @@ CREATE INDEX ix_stock_prices_date ON stock_prices (price_date);
 def main():
     loader = StockLoader()
     try:
-        symbols  = loader.load_symbols()
-        prices   = loader.load_prices(symbols)
-        long_df  = loader.to_long_format(prices)
+        symbols      = loader.load_symbols()
+        prices       = loader.load_prices(symbols)
+        market_caps  = loader.load_market_caps(symbols)
+        long_df      = loader.to_long_format(prices, market_caps=market_caps)
 
         print(f"\n📊 Tabelle: {len(long_df):,} Zeilen, {long_df['symbol'].nunique()} Symbole")
 
