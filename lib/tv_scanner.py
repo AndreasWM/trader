@@ -143,23 +143,19 @@ class TV_Scanner:
                 print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
                 return scanner_data
 
-    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int, perf_1m_value: float | None, performance: Performance,
+    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int, performance: Performance,
                            length: int, capital_per_stock: float, ascending: bool) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type') == 'stock'
         cond_typespec = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
-        cond_perf_1m =      Column('Perf.1M') > perf_1m_value if perf_1m_value is not None and perf_1m_value > 0 \
-                       else Column('Perf.1M') < perf_1m_value if perf_1m_value is not None and perf_1m_value < 0 \
-                       else self.always_true()
         conditions = [
             cond_limit_size,
             cond_stocktype,
             cond_typespec,
             cond_exchange,
             cond_market_cap,
-            # cond_perf_1m,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
