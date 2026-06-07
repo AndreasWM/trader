@@ -59,7 +59,8 @@ class StockList:
 
         self._scanner_long_list = self.query(min_market_cap=min_market_cap, performance=performance, ascending=False)
         self._scanner_short_list = self.query(min_market_cap=min_market_cap, performance=performance, ascending=True)
-        self._scanner_list = self._scanner_long_list #+ self._scanner_short_list
+        # self._scanner_list = self._scanner_long_list + self._scanner_short_list
+        self._scanner_list = self._scanner_short_list
     
     def _set_symbol_lists(self):
         stock_symbols = [p.symbol for p in self._stock_list]
