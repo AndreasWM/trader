@@ -12,6 +12,7 @@ from lib.stock_util import StockUtil
 from lib.position import IBKRPosition, ScannerPosition
 from lib.yfinance_ticker import YfinanceTicker
 
+CAPITAL_RESERVE = 0
 CLOSE_ALL = False
 LEVERAGE = 2.0
 MAX_NUMBER_OF_STOCKS = 10
@@ -37,7 +38,7 @@ class StockList:
         self._leverage: float = LEVERAGE
         self._number_of_stocks: int = NUMBER_OF_STOCKS
         self._max_number_of_stocks: int = MAX_NUMBER_OF_STOCKS
-        self._capital_reserve = 0 * self._price_eurusd
+        self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
         self._close_all = CLOSE_ALL
     
     def _calculate_capital_per_stock(self):
