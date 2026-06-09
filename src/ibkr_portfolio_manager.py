@@ -14,7 +14,7 @@ from lib.yfinance_ticker import YfinanceTicker
 
 CAPITAL_RESERVE = 0
 CLOSE_ALL = False
-LEVERAGE = 2.0
+LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 10
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 10
