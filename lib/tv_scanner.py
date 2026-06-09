@@ -144,18 +144,24 @@ class TV_Scanner:
                 return scanner_data
 
     def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int, performance: Performance,
-                           length: int, capital_per_stock: float, ascending: bool) -> list[ScannerPosition]:
+                           length: int, capital_per_stock: float, is_long: bool) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
-        cond_stocktype = Column('type') == 'stock'
-        cond_typespec = Column('subtype') != 'preferred'
+        cond_stocktype = Column('type').isin(['stock','dr'])
+        cond_subtype = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
+        tech_cond_buy_1h = Column('Recommend.All|60') >= 0.5 if is_long else Column('Recommend.All|60') <= -0.5
+        tech_cond_buy_4h = Column('Recommend.All|240') >= 0.1 if is_long else Column('Recommend.All|240') <= -0.1
+        tech_cond_buy_1D = Column('Recommend.All') >= 0.1 if is_long else Column('Recommend.All') <= -0.1
         conditions = [
             cond_limit_size,
             cond_stocktype,
-            cond_typespec,
+            cond_subtype,
             cond_exchange,
             cond_market_cap,
+            tech_cond_buy_1h,
+            tech_cond_buy_4h,
+            tech_cond_buy_1D,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -173,7 +179,7 @@ class TV_Scanner:
                 performance.value,
             ) \
             .where(*conditions) \
-            .order_by(performance.value, ascending=ascending) \
+            .order_by(performance.value, ascending=False) \
             .limit(length)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
@@ -193,47 +199,8 @@ class TV_Scanner:
             postmarket_change = self.safe_float(row['postmarket_change'])
             exchange = row['exchange']
             perf = self.safe_float(row['perf'])
-            pos = ScannerPosition(symbol=symbol, price=price, premarket_change=premarket_change, postmarket_change=postmarket_change, exchange=exchange, perf=perf)
+            pos = ScannerPosition(symbol=symbol, is_long=is_long, price=price,
+                                  premarket_change=premarket_change, postmarket_change=postmarket_change, exchange=exchange)
             pos_list.append(pos)
 
         return pos_list
-
-    def query_us_symbols(self, tickers_to_exclude: list[str], market_cap: int, length: int) -> list[str]:
-        cond_stocktype = Column('type') == 'stock'
-        cond_typespec = Column('subtype') != 'preferred'
-        cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
-        cond_market_cap = Column('market_cap_basic') > market_cap
-        conditions = [
-            cond_stocktype,
-            cond_typespec,
-            cond_exchange,
-            cond_market_cap,
-        ]
-        if tickers_to_exclude:
-            conditions.append(Column('name').not_in(tickers_to_exclude))
-        
-        q = Query() \
-            .select(
-                'name',
-                'type',
-                'subtype',
-                'exchange',
-                'market_cap_basic',
-            ) \
-            .where(*conditions) \
-            .order_by('market_cap_basic', ascending=False) \
-            .limit(length)
-        
-        _, scanner_data = q.get_scanner_data(cookies=self._cookies)
-        
-        scanner_data = scanner_data.drop(columns=['ticker'])
-        scanner_data = scanner_data.rename(columns={
-            "name": "symbol",
-        })
-        
-        symbol_list = []
-        for _, row in scanner_data.iterrows():
-            symbol = row['symbol']
-            symbol_list.append(symbol)
-
-        return symbol_list
