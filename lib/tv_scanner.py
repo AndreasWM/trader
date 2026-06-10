@@ -14,15 +14,6 @@ if project_root not in sys.path:
 
 from lib.position import ScannerPosition
 
-class Performance(Enum):
-    Pf_1M = "Perf.1M"
-    Pf_1W = "Perf.W"
-    Pf_Y = "Perf.Y"
-    Pf_YTD = "Perf.YTD"
-    Pf_5Y = "Perf.5Y"
-
-    def __str__(self):
-        return self.value
 class TV_Scanner:
     def __init__(self):
         # Erkennung der Umgebung
@@ -85,74 +76,21 @@ class TV_Scanner:
     def always_true(self):
         return Column("exchange") != "INVALID"
 
-    def scan_list(self, stock_list: list[str], performance: Performance) -> pd.DataFrame:
-        print(f"📡 Scanne {len(stock_list)} Aktien bei TradingView...")
-        
-        if stock_list is None:
-            print("⚠️  Quell-Aktienliste ist leer")
-            return pd.DataFrame()
-        else:
-            all_data = []
-            batch_size = 50
-            
-            for i in range(0, len(stock_list), batch_size):
-                batch = stock_list[i:i + batch_size]
-                
-                conditions = [
-                    col('name').isin(batch),
-                ]
-                q = Query() \
-                    .select(
-                        'name',
-                        'exchange',
-                        'close',
-                        'change',
-                        performance.value,
-                        'Recommend.All',
-                        'Ichimoku.Lead1',
-                        'Ichimoku.Lead2',
-                    ) \
-                    .where(*conditions)
-                
-                try:
-                    _, scanner_data = q.get_scanner_data(cookies=self._cookies)
-                except (TypeError, AttributeError):
-                    print(f"  ⚠️  Fehler bei Batch {i//batch_size + 1}")
-                    continue
-                
-                if scanner_data is not None and not scanner_data.empty:
-                    all_data.append(scanner_data)
-                    print(f"  ✓ Batch {i//batch_size + 1}: {len(scanner_data)} Aktien")
-        
-            if not all_data:
-                print("⚠️  Keine Daten gefunden")
-                return pd.DataFrame()
-            else:
-                scanner_data = pd.concat(all_data, ignore_index=True)
-                
-                scanner_data = scanner_data.drop(columns=['ticker'], errors='ignore')
-                scanner_data = scanner_data.rename(columns={
-                    "name": "symbol",
-                    "close": "price",
-                    performance.value: "perf",
-                    "Recommend.All": "tech_rating",
-                    "Ichimoku.Lead1": "lead1",
-                    "Ichimoku.Lead2": "lead2",
-                })
-                
-                print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
-                return scanner_data
-
-    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int, performance: Performance,
+    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int,
                            length: int, capital_per_stock: float, is_long: bool) -> list[ScannerPosition]:
+        column_performance = 'Perf.YTD'
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type').isin(['stock','dr'])
         cond_subtype = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE', 'AMEX', 'CBOE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
-        tech_cond_buy_1h = Column('Recommend.All|60') >= 0.5 if is_long else Column('Recommend.All|60') <= -0.5
+        tech_cond_buy_1h = Column('Recommend.All|60') >= 0.1 if is_long else Column('Recommend.All|60') <= -0.1
         tech_cond_buy_4h = Column('Recommend.All|240') >= 0.1 if is_long else Column('Recommend.All|240') <= -0.1
         tech_cond_buy_1D = Column('Recommend.All') >= 0.1 if is_long else Column('Recommend.All') <= -0.1
+        tech_cond_buy_1W = Column('Recommend.All|1W') >= 0.1 if is_long else Column('Recommend.All|1W') <= -0.1
+        tech_cond_buy_1M = Column('Recommend.All|1M') >= 0.1 if is_long else Column('Recommend.All|1M') <= -0.1
+        cond_premarket = Column('premarket_change') > 0.0 if is_long else Column('premarket_change') < 0.0
+        cond_performance = Column(column_performance) > 0.0 if is_long else Column(column_performance) < 0.0
         conditions = [
             cond_limit_size,
             cond_stocktype,
@@ -162,6 +100,10 @@ class TV_Scanner:
             tech_cond_buy_1h,
             tech_cond_buy_4h,
             tech_cond_buy_1D,
+            tech_cond_buy_1W,
+            tech_cond_buy_1M,
+            cond_premarket,
+            cond_performance
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -176,10 +118,9 @@ class TV_Scanner:
                 'type',
                 'subtype',
                 'market_cap_basic',
-                performance.value,
             ) \
             .where(*conditions) \
-            .order_by(performance.value, ascending=False) \
+            .order_by(column_performance, ascending=False if is_long else True) \
             .limit(length)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
@@ -188,7 +129,6 @@ class TV_Scanner:
         scanner_data = scanner_data.rename(columns={
             "name": "symbol",
             "close": "price",
-            performance.value: "perf",
         })
         
         pos_list = []
@@ -198,7 +138,6 @@ class TV_Scanner:
             premarket_change = self.safe_float(row['premarket_change'])
             postmarket_change = self.safe_float(row['postmarket_change'])
             exchange = row['exchange']
-            perf = self.safe_float(row['perf'])
             pos = ScannerPosition(symbol=symbol, is_long=is_long, price=price,
                                   premarket_change=premarket_change, postmarket_change=postmarket_change, exchange=exchange)
             pos_list.append(pos)

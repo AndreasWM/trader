@@ -1,34 +1,17 @@
 import os
 import sys
-import pandas as pd
 import csv
 import glob
-from typing import Hashable, cast, Any, List, Dict
+from typing import cast
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from lib.tv_scanner import TV_Scanner, Performance
 from lib.ibkr_market_order import IBKROrder, MarketOrder
-from lib.position import IBKRPosition, ScannerPosition
+from lib.position import IBKRPosition
 
 class StockUtil:
-    def get_exchanges(self, symbols: List[str]) -> List[Dict[Hashable, Any]]:
-        sc = TV_Scanner()
-        results = sc.scan_list(stock_list=symbols, performance=Performance.Pf_1M)
-        if isinstance(results, pd.DataFrame) and not results.empty:
-            return results[['symbol', 'exchange']].to_dict('records')
-        else:
-            return []
-        
-    def create_watchlist_file(self, symbols: list[str], filename: str):
-        watchlist_lines = []
-        if symbols:
-            pairs = self.get_exchanges(symbols)
-            watchlist_lines = '\n'.join([f"{pair['exchange']}:{pair['symbol']}" for pair in pairs])
-            self.create_text_file(text=watchlist_lines, filename=filename)
-
     def create_text_file(self, text: str, filename: str):
         with open(filename, 'w') as f:
             f.write(text)

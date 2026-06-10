@@ -7,16 +7,17 @@ if project_root not in sys.path:
 
 from enum import Enum
 from lib.ibkr_market_order import MarketOrder
-from lib.tv_scanner import TV_Scanner, Performance
+from lib.tv_scanner import TV_Scanner
 from lib.stock_util import StockUtil
 from lib.position import IBKRPosition, ScannerPosition
 from lib.yfinance_ticker import YfinanceTicker
 
 CAPITAL_RESERVE = 0
-CLOSE_ALL = False
+FLAG_LONG = False
+FLAG_SHORT = True
 LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 10
-MIN_MARKET_CAP = 50_000_000_000
+MIN_MARKET_CAP = 10_000_000_000
 NUMBER_OF_STOCKS = 10
 
 class StockList:
@@ -34,21 +35,22 @@ class StockList:
         self._create_analysis_file()
 
     def _set_params(self):
-        self._min_market_cap =  MIN_MARKET_CAP
-        self._leverage: float = LEVERAGE
-        self._number_of_stocks: int = NUMBER_OF_STOCKS
-        self._max_number_of_stocks: int = MAX_NUMBER_OF_STOCKS
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
-        self._close_all = CLOSE_ALL
+        self._flag_long = FLAG_LONG
+        self._flag_short = FLAG_SHORT
+        self._leverage: float = LEVERAGE
+        self._max_number_of_stocks: int = MAX_NUMBER_OF_STOCKS
+        self._min_market_cap =  MIN_MARKET_CAP
+        self._number_of_stocks: int = NUMBER_OF_STOCKS
     
     def _calculate_capital_per_stock(self):
         net_liquidation = self._ibkr.get_net_liquidation() * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
     
-    def query(self, min_market_cap: int, performance: Performance, is_long: bool) -> list[ScannerPosition]:
+    def query(self, min_market_cap: int, is_long: bool) -> list[ScannerPosition]:
         scanner_list: list[ScannerPosition] = self._sc.query_us_largecaps(
-            tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap, performance=performance,
+            tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=is_long)
         return scanner_list
 
@@ -56,18 +58,18 @@ class StockList:
         self._ibkr_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
         self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(self._util.get_data_dir(trader=self._ibkr)))
 
-        self._scanner_long_list = self.query(min_market_cap=self._min_market_cap, performance=Performance.Pf_YTD, is_long=True)
-        self._scanner_short_list = self.query(min_market_cap=self._min_market_cap, performance=Performance.Pf_YTD, is_long=False)
-        self._scanner_list = self._scanner_long_list + self._scanner_short_list
+        self._scanner_long_list = self.query(min_market_cap=self._min_market_cap, is_long=True)
+        self._scanner_short_list = self.query(min_market_cap=self._min_market_cap, is_long=False)
+        self._scanner_list = []
+        if self._flag_long:
+            self._scanner_list += self._scanner_long_list
+        if self._flag_short:
+            self._scanner_list += self._scanner_short_list
     
     def _set_symbol_lists(self):
         stock_symbols = [p.symbol for p in self._ibkr_list]
-        if self._close_all:
-            self._close_symbols = stock_symbols
-            self._invest_symbols = []
-        else:
-            self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_list]]
-            self._invest_symbols = [p.symbol for p in self._scanner_list if p.symbol not in stock_symbols]
+        self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_list]]
+        self._invest_symbols = [p.symbol for p in self._scanner_list if p.symbol not in stock_symbols]
 
     def _set_lookups(self):
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_list}
