@@ -13,7 +13,7 @@ from lib.position import IBKRPosition, ScannerPosition
 from lib.yfinance_ticker import YfinanceTicker
 
 CAPITAL_RESERVE = 0
-FLAG_LONG = False
+FLAG_LONG = True
 FLAG_SHORT = True
 LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 10
@@ -79,11 +79,15 @@ class StockList:
         self.long_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_long_list}
         str_ibkr_long = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._ibkr_list if p.position > 0)
         str_scanner_long = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in self._scanner_long_list)
+        print(f"Aktuelle Long-Positionen: {str_ibkr_long}")
+        print(f"Neue Long-Positionen: {str_scanner_long}")
         exchange_symbol_pairs_long = [f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list]
 
         self.short_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_short_list}
         str_ibkr_short = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._ibkr_list if p.position < 0)
         str_scanner_short = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in self._scanner_short_list)
+        print(f"Aktuelle Short-Positionen: {str_ibkr_short}")
+        print(f"Neue Short-Positionen: {str_scanner_short}")
         exchange_symbol_pairs_short = [f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list]
 
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
