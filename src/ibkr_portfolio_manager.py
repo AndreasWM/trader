@@ -44,7 +44,9 @@ class StockList:
         self._number_of_stocks: int = NUMBER_OF_STOCKS
     
     def _calculate_capital_per_stock(self):
-        net_liquidation = self._ibkr.get_net_liquidation() * self._price_eurusd
+        net_liquidation_euro = self._ibkr.get_net_liquidation()
+        print(f"Net Liquidation (EUR): {net_liquidation_euro:.2f}")
+        net_liquidation = net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
     
