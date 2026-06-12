@@ -12,6 +12,7 @@ from lib.stock_util import StockUtil
 from lib.position import IBKRPosition, ScannerPosition
 from lib.yfinance_ticker import YfinanceTicker
 
+ANALYSIS_FILE = 'data/Analysis_Prod.txt'
 CAPITAL_RESERVE = 0
 FLAG_LONG = True
 FLAG_SHORT = True
@@ -35,6 +36,7 @@ class StockList:
         self._create_analysis_file()
 
     def _set_params(self):
+        self._analysis_file = ANALYSIS_FILE
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
         self._flag_long = FLAG_LONG
         self._flag_short = FLAG_SHORT
@@ -97,7 +99,7 @@ class StockList:
         watchlist_text = '\n'.join([str_ibkr_long, str_scanner_long]  + exchange_symbol_pairs_long
                                  + [str_ibkr_short, str_scanner_short] + exchange_symbol_pairs_short
                                  + index_pairs)
-        self._util.create_text_file(text=watchlist_text, filename='data/Analysis.txt')
+        self._util.create_text_file(text=watchlist_text, filename=self._analysis_file)
     
 class OrderList:
     def __init__(self, capital_per_stock: float):
