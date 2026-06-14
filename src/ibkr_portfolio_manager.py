@@ -53,7 +53,6 @@ class StockList:
     
     def _calculate_capital_per_stock(self):
         net_liquidation_euro = self._ibkr.get_net_liquidation()
-        print(f"Net Liquidation (EUR): {net_liquidation_euro:.2f}")
         net_liquidation = net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
@@ -89,15 +88,11 @@ class StockList:
         self.long_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_long_list}
         str_ibkr_long = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._ibkr_list if p.position > 0)
         str_scanner_long = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in self._scanner_long_list)
-        print(f"Aktuelle Long-Positionen: {str_ibkr_long}")
-        print(f"Neue Long-Positionen: {str_scanner_long}")
         exchange_symbol_pairs_long = [f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list]
 
         self.short_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_short_list}
         str_ibkr_short = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._ibkr_list if p.position < 0)
         str_scanner_short = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in self._scanner_short_list)
-        print(f"Aktuelle Short-Positionen: {str_ibkr_short}")
-        print(f"Neue Short-Positionen: {str_scanner_short}")
         exchange_symbol_pairs_short = [f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list]
 
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
@@ -149,6 +144,7 @@ class PortfolioManager:
                 print(f"Update wird durchgeführt, da bereits mehr als {state.max_age_hours} Stunden seit dem letzten Update vergangen sind.")
             else:
                 increase_in_percentage = (new_liquidation - state.net_liquidation_eur) / state.net_liquidation_eur * 100
+                print(f"Alter Depotstand: {state.net_liquidation_eur}€ Neuer Depotstand: {new_liquidation}€ Zuwachs: {increase_in_percentage}%")
                 wanted = increase_in_percentage > THRESHOLD_INCREASE_IN_PERCENTAGE
                 if wanted:
                     print(f"Update wird durchgeführt, da das Vermögen um mehr als {increase_in_percentage:.2f}% gestiegen ist.")
