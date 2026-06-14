@@ -4,6 +4,10 @@ import csv
 import glob
 from typing import cast
 
+import pandas_market_calendars as mcal
+from datetime import datetime
+import pytz
+
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
@@ -95,3 +99,25 @@ class StockUtil:
                 trader.execute(orders)
             else:
                 print("Abgebrochen durch Benutzer.")
+
+    def is_market_open(self, market: str = "NASDAQ") -> bool:
+        """Prüft ob NYSE oder NASDAQ gerade geöffnet ist."""
+        cal = mcal.get_calendar(market)  # oder "NYSE"
+        
+        ny_tz = pytz.timezone("America/New_York")
+        now_ny = datetime.now(ny_tz)
+        today = now_ny.date()
+        
+        # Handelsstunden für heute abrufen
+        schedule = cal.schedule(
+            start_date=today.isoformat(),
+            end_date=today.isoformat()
+        )
+        
+        if schedule.empty:
+            return False  # Kein Handelstag (Wochenende / Feiertag)
+        
+        market_open  = schedule.iloc[0]["market_open"].to_pydatetime()
+        market_close = schedule.iloc[0]["market_close"].to_pydatetime()
+        
+        return market_open <= datetime.now(pytz.utc) <= market_close

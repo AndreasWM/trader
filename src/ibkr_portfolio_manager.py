@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import sys
 
@@ -7,12 +8,13 @@ if project_root not in sys.path:
 
 from enum import Enum
 from lib.ibkr_market_order import MarketOrder
-from lib.tv_scanner import TV_Scanner
-from lib.stock_util import StockUtil
 from lib.position import IBKRPosition, ScannerPosition
+from lib.stock_util import StockUtil
+from lib.state_store import StateStore
+from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
-ANALYSIS_FILE = 'data/Analysis_Prod.txt'
+ANALYSIS_FILE = 'data/Analysis_Test.txt'
 CAPITAL_RESERVE = 0
 FLAG_LONG = True
 FLAG_SHORT = True
@@ -20,6 +22,7 @@ LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 10
 MIN_MARKET_CAP = 10_000_000_000
 NUMBER_OF_STOCKS = 10
+THRESHOLD_INCREASE_IN_PERCENTAGE = 1
 
 class StockList:
     def __init__(self, ibkr: MarketOrder):
@@ -123,10 +126,36 @@ class PortfolioManager:
         self._order_list: OrderList = OrderList(capital_per_stock=self._stock_list.capital_per_stock)
         self._skip_confirm = skip_confirm
 
+    def is_market_open(self) -> bool:
+        ret = self._util.is_market_open("NYSE") and self._util.is_market_open("NASDAQ")
+        return ret
+
     def invest(self):
         self.create_close_orders()
         self.create_invest_orders()
         self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
+    
+    def investing_wanted(self) -> bool:
+        state = StateStore.load()
+        new_liquidation = self._ibkr.get_net_liquidation()
+        if state.last_update is not None:
+            if state.is_outdated():
+                wanted = True
+                print(f"Update wird durchgeführt, da bereits mehr als {state.max_age_hours} Stunden seit dem letzten Update vergangen sind.")
+            else:
+                increase_in_percentage = (new_liquidation - state.net_liquidation_eur) / state.net_liquidation_eur * 100
+                wanted = increase_in_percentage > THRESHOLD_INCREASE_IN_PERCENTAGE
+                if wanted:
+                    print(f"Update wird durchgeführt, da das Vermögen um mehr als {increase_in_percentage:.2f}% gestiegen ist.")
+                else:
+                    print(f"Update wird nicht durchgeführt.")
+        else:
+            wanted = False
+            print(f"Update wird nicht durchgeführt.")
+        state.net_liquidation_eur = new_liquidation
+        state.last_update = datetime.now()
+        state.save()
+        return wanted
 
     def create_close_orders(self):
         for symbol in self._stock_list._close_symbols:
@@ -146,7 +175,11 @@ class PortfolioManager:
 def main():
     skip_confirm = '-y' in sys.argv or '-Y' in sys.argv
     manager = PortfolioManager(skip_confirm=skip_confirm)
-    manager.invest()
+    if manager.is_market_open():
+        if manager.investing_wanted():
+            manager.invest()
+    else:
+        print("Markt geschlossen")
     manager.disconnect()
 
 if __name__ == "__main__":
