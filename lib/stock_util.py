@@ -3,6 +3,7 @@ import sys
 import csv
 import glob
 from typing import cast
+from pathlib import Path
 
 import pandas_market_calendars as mcal
 from datetime import datetime, timedelta
@@ -16,7 +17,7 @@ from lib.ibkr_market_order import IBKROrder, MarketOrder
 from lib.position import IBKRPosition
 
 class StockUtil:
-    def create_text_file(self, text: str, filename: str):
+    def create_text_file(self, text: str, filename: str | Path):
         with open(filename, 'w') as f:
             f.write(text)
 

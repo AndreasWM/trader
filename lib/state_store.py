@@ -4,7 +4,9 @@ from pathlib import Path
 from typing import Optional
 import yaml
 
-PATH_STATE = "data/state.yaml"
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+PATH_STATE = BASE_DIR / 'data' / 'state.yaml'
 MAX_AGE_HOURS = 12
 
 @dataclass
@@ -14,7 +16,7 @@ class StateStore:
     max_age_hours: int = MAX_AGE_HOURS
 
     @classmethod
-    def load(cls, path: str = PATH_STATE) -> "StateStore":
+    def load(cls, path: str | Path = PATH_STATE) -> "StateStore":
         p = Path(path)
         if not p.exists():
             return cls()
@@ -26,7 +28,7 @@ class StateStore:
             max_age_hours=int(data.get("max_age_hours", MAX_AGE_HOURS)),
         )
 
-    def save(self, path: str = PATH_STATE) -> None:
+    def save(self, path: str | Path = PATH_STATE) -> None:
         data = asdict(self)
         with Path(path).open("w", encoding="utf-8") as f:
             yaml.safe_dump(data, f, default_flow_style=False, allow_unicode=True)

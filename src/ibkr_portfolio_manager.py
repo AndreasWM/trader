@@ -1,12 +1,13 @@
 from datetime import datetime
 import os
 import sys
+from enum import Enum
+from pathlib import Path
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from enum import Enum
 from lib.ibkr_market_order import MarketOrder
 from lib.position import IBKRPosition, ScannerPosition
 from lib.stock_util import StockUtil
@@ -14,7 +15,9 @@ from lib.state_store import StateStore
 from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
-ANALYSIS_FILE = 'data/Analysis_Test.txt'
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+ANALYSIS_FILE = BASE_DIR / 'data' / 'Analysis_Test.txt'
 CAPITAL_RESERVE = 0
 FLAG_LONG = True
 FLAG_SHORT = True
@@ -120,6 +123,8 @@ class OrderList:
 
 class PortfolioManager:
     def __init__(self, skip_confirm: bool = False):
+        print("#" * 120)
+        print(f"Start: {datetime.now()}")
         self._ibkr = MarketOrder()
         self._util = StockUtil()
         self._stock_list: StockList = StockList(ibkr=self._ibkr)
