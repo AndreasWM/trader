@@ -122,4 +122,4 @@ class StockUtil:
         market_open  = schedule.iloc[0]["market_open"].to_pydatetime()
         market_close = schedule.iloc[0]["market_close"].to_pydatetime()
         
-        return market_open - timedelta(minutes=15) <= datetime.now(pytz.utc) <= market_close
+        return market_open + timedelta(minutes=15) <= datetime.now(pytz.utc) <= market_close + timedelta(minutes=1)
