@@ -135,7 +135,12 @@ class PortfolioManager:
         self.create_invest_orders()
     
     def invest(self):
-        self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
+        is_executed = self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
+        if is_executed:
+            state = StateStore.load()
+            state.net_liquidation_eur = self._ibkr.get_net_liquidation()
+            state.last_update = datetime.now()
+            state.save()
     
     def investing_wanted(self) -> bool:
         state = StateStore.load()
@@ -143,21 +148,20 @@ class PortfolioManager:
         if state.last_update is not None:
             if state.is_outdated():
                 wanted = True
-                print(f"Update wird durchgeführt, da bereits mehr als {state.max_age_hours} Stunden seit dem letzten Update vergangen sind.")
+                print(f"Update kann durchgeführt werden, da bereits mehr als {state.max_age_hours} Stunden seit dem letzten Update vergangen sind.")
             else:
                 increase_in_percentage = (new_liquidation - state.net_liquidation_eur) / state.net_liquidation_eur * 100
-                print(f"Alter Depotstand: {state.net_liquidation_eur}€ Neuer Depotstand: {new_liquidation}€ Zuwachs: {increase_in_percentage}%")
+                print(f"Alter Depotstand: {state.net_liquidation_eur:.2f} €")
+                print(f"Neuer Depotstand: {new_liquidation:.2f} €")
+                print(f"Zuwachs: {increase_in_percentage:.2f} %")
                 wanted = increase_in_percentage > THRESHOLD_INCREASE_IN_PERCENTAGE
                 if wanted:
-                    print(f"Update wird durchgeführt, da das Vermögen um mehr als {increase_in_percentage:.2f}% gestiegen ist.")
+                    print(f"Update kann durchgeführt werden.")
                 else:
                     print(f"Update wird nicht durchgeführt.")
         else:
             wanted = False
             print(f"Update wird nicht durchgeführt.")
-        state.net_liquidation_eur = new_liquidation
-        state.last_update = datetime.now()
-        state.save()
         return wanted
 
     def create_close_orders(self):

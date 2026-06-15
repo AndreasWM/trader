@@ -86,10 +86,11 @@ class StockUtil:
             action=action
         )
     
-    def execute_orders(self, trader: MarketOrder, orders: list[IBKROrder], skip_confirm: bool = False):
+    def execute_orders(self, trader: MarketOrder, orders: list[IBKROrder], skip_confirm: bool = False) -> bool:
+        is_executed = False
         if not orders:
             print("\nℹ️ Keine neuen Orders zu erstellen.")
-            return
+            return False
         else:
             print(f"\n📋 Ausführen von {len(orders)} Orders")
             if not skip_confirm:
@@ -98,8 +99,10 @@ class StockUtil:
                 response = "Y"
             if response == 'Y':
                 trader.execute(orders)
+                is_executed = True
             else:
                 print("Abgebrochen durch Benutzer.")
+            return is_executed
 
     def is_market_open(self, market: str = "NASDAQ") -> bool:
         cal = mcal.get_calendar(market)
