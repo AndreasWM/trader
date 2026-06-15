@@ -130,9 +130,11 @@ class PortfolioManager:
         ret = self._util.is_market_open("NYSE") and self._util.is_market_open("NASDAQ")
         return ret
 
-    def invest(self):
+    def create_orders(self):
         self.create_close_orders()
         self.create_invest_orders()
+    
+    def invest(self):
         self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
     
     def investing_wanted(self) -> bool:
@@ -176,6 +178,7 @@ class PortfolioManager:
 def main():
     skip_confirm = '-y' in sys.argv or '-Y' in sys.argv
     manager = PortfolioManager(skip_confirm=skip_confirm)
+    manager.create_orders()
     if manager.is_market_open():
         if manager.investing_wanted():
             manager.invest()
