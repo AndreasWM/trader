@@ -25,7 +25,7 @@ LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 10
 MIN_MARKET_CAP = 10_000_000_000
 NUMBER_OF_STOCKS = 10
-THRESHOLD_INCREASE_IN_PERCENTAGE = 1
+THRESHOLD_INCREASE_IN_PERCENTAGE = 2
 
 class StockList:
     def __init__(self, ibkr: MarketOrder):
@@ -52,8 +52,8 @@ class StockList:
         self._number_of_stocks: int = NUMBER_OF_STOCKS
     
     def _calculate_capital_per_stock(self):
-        net_liquidation_euro = self._ibkr.get_net_liquidation()
-        net_liquidation = net_liquidation_euro * self._price_eurusd
+        self._net_liquidation_euro = self._ibkr.get_net_liquidation()
+        net_liquidation = self._net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
     
@@ -138,13 +138,13 @@ class PortfolioManager:
         is_executed = self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
         if is_executed:
             state = StateStore.load()
-            state.net_liquidation_eur = self._ibkr.get_net_liquidation()
+            state.net_liquidation_eur = self._stock_list._net_liquidation_euro
             state.last_update = datetime.now()
             state.save()
     
     def investing_wanted(self) -> bool:
         state = StateStore.load()
-        new_liquidation = self._ibkr.get_net_liquidation()
+        new_liquidation = self._stock_list._net_liquidation_euro
         if state.last_update is not None:
             if state.is_outdated():
                 wanted = True
