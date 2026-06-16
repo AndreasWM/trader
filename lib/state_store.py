@@ -36,4 +36,5 @@ class StateStore:
     def is_outdated(self, max_age: timedelta = timedelta(hours=MAX_AGE_HOURS)) -> bool:
         if self.last_update is None:
             return True
-        return (datetime.now() - self.last_update) > max_age
+        ret = (datetime.now() - self.last_update) > max_age
+        return ret
