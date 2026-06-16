@@ -1,7 +1,7 @@
 import os
 import sys
 from enum import Enum
-from tradingview_screener.query import Query
+from tradingview_screener.query import Or, Query
 from tradingview_screener.column import Column, col
 import pandas as pd
 import rookiepy
@@ -89,10 +89,6 @@ class TV_Scanner:
         tech_cond_buy_1D = Column('Recommend.All') >= 0.1 if is_long else Column('Recommend.All') <= -0.1
         tech_cond_buy_1W = Column('Recommend.All|1W') >= 0.1 if is_long else Column('Recommend.All|1W') <= -0.1
         tech_cond_buy_1M = Column('Recommend.All|1M') >= 0.1 if is_long else Column('Recommend.All|1M') <= -0.1
-        cond_premarket = Column('premarket_change') > 0.0 if is_long else Column('premarket_change') < 0.0
-        # premarket_col = Column('premarket_change')
-        # direction_cond = premarket_col > 0.0 if is_long else premarket_col < 0.0
-        # cond_premarket = direction_cond | premarket_col.empty()
         cond_perf_ytd = Column(column_perf_ytd) > 0.0 if is_long else Column(column_perf_ytd) < 0.0
         conditions = [
             cond_limit_size,
@@ -105,12 +101,13 @@ class TV_Scanner:
             tech_cond_buy_1D,
             tech_cond_buy_1W,
             tech_cond_buy_1M,
-            cond_premarket,
             cond_perf_ytd
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
         
+        premarket_col = Column('premarket_change')
+        direction_cond = premarket_col > 0.0 if is_long else premarket_col < 0.0
         q = Query() \
             .select(
                 'name',
@@ -123,6 +120,7 @@ class TV_Scanner:
                 'market_cap_basic',
             ) \
             .where(*conditions) \
+            .where2(Or(direction_cond, premarket_col.empty())) \
             .order_by(column_perf_ytd, ascending=False if is_long else True) \
             .limit(length)
         
