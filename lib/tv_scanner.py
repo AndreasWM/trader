@@ -78,7 +78,7 @@ class TV_Scanner:
 
     def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int,
                            length: int, capital_per_stock: float, is_long: bool) -> list[ScannerPosition]:
-        column_performance = 'Perf.YTD'
+        column_perf_ytd = 'Perf.YTD'
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type').isin(['stock','dr'])
         cond_subtype = Column('subtype') != 'preferred'
@@ -89,8 +89,10 @@ class TV_Scanner:
         tech_cond_buy_1D = Column('Recommend.All') >= 0.1 if is_long else Column('Recommend.All') <= -0.1
         tech_cond_buy_1W = Column('Recommend.All|1W') >= 0.1 if is_long else Column('Recommend.All|1W') <= -0.1
         tech_cond_buy_1M = Column('Recommend.All|1M') >= 0.1 if is_long else Column('Recommend.All|1M') <= -0.1
-        cond_premarket = Column('premarket_change') > 0.0 if is_long else Column('premarket_change') < 0.0
-        cond_performance = Column(column_performance) > 0.0 if is_long else Column(column_performance) < 0.0
+        premarket_col = Column('premarket_change')
+        direction_cond = premarket_col > 0.0 if is_long else premarket_col < 0.0
+        cond_premarket = direction_cond | premarket_col.empty()
+        cond_perf_ytd = Column(column_perf_ytd) > 0.0 if is_long else Column(column_perf_ytd) < 0.0
         conditions = [
             cond_limit_size,
             cond_stocktype,
@@ -103,7 +105,7 @@ class TV_Scanner:
             tech_cond_buy_1W,
             tech_cond_buy_1M,
             cond_premarket,
-            cond_performance
+            cond_perf_ytd
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -120,7 +122,7 @@ class TV_Scanner:
                 'market_cap_basic',
             ) \
             .where(*conditions) \
-            .order_by(column_performance, ascending=False if is_long else True) \
+            .order_by(column_perf_ytd, ascending=False if is_long else True) \
             .limit(length)
         
         _, scanner_data = q.get_scanner_data(cookies=self._cookies)
