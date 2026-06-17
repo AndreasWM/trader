@@ -151,8 +151,8 @@ class PortfolioManager:
                 print(f"Update kann durchgeführt werden, da bereits mehr als {state.max_age_hours} Stunden seit dem letzten Update vergangen sind.")
             else:
                 increase_in_percentage = (new_liquidation - state.net_liquidation_eur) / (state.net_liquidation_eur - CAPITAL_RESERVE) * 100
-                print(f"Alter Depotstand: {state.net_liquidation_eur:.2f} €")
-                print(f"Neuer Depotstand: {new_liquidation:.2f} €")
+                print(f"Alter Depotstand: {state.net_liquidation_eur:.2f} € ({state.net_liquidation_eur-CAPITAL_RESERVE:.2f} €)")
+                print(f"Neuer Depotstand: {new_liquidation:.2f} € ({new_liquidation-CAPITAL_RESERVE:.2f} €)")
                 print(f"Zuwachs: {increase_in_percentage:.2f} %")
                 wanted = increase_in_percentage > THRESHOLD_INCREASE_IN_PERCENTAGE
                 if wanted:
