@@ -37,4 +37,5 @@ class StateStore:
         if self.last_update is None:
             return True
         ret = (datetime.now() - self.last_update) > max_age
+        ret = False # never outdated
         return ret
