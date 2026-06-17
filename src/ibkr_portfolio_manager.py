@@ -84,21 +84,45 @@ class StockList:
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_list}
         self.invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_list}
     
+    def _ibkr_positions_to_string(self, positions: list[IBKRPosition]) -> str:
+        return "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in positions)
+    
+    def _scanner_positions_to_string(self, positions: list[ScannerPosition]) -> str:
+        return "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in positions)
+    
+    def _positions_to_strings(self, ibkr_list: list[IBKRPosition], scanner_list: list[ScannerPosition]) -> tuple[str, str, str, str]:
+        str_ibkr_1 = self._ibkr_positions_to_string(positions=ibkr_list[:5])
+        str_ibkr_2 = self._ibkr_positions_to_string(positions=ibkr_list[5:10])
+        str_scanner_1 = self._scanner_positions_to_string(positions=scanner_list[:5])
+        str_scanner_2 = self._scanner_positions_to_string(positions=scanner_list[5:10])
+        return str_ibkr_1, str_ibkr_2, str_scanner_1, str_scanner_2
+    
     def _create_analysis_file(self):
         self.long_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_long_list}
-        str_ibkr_long = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._ibkr_list if p.position > 0)
-        str_scanner_long = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in self._scanner_long_list)
-        exchange_symbol_pairs_long = [f"{l.exchange}:{l.symbol}" for l in self._scanner_long_list]
-
         self.short_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_short_list}
-        str_ibkr_short = "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in self._ibkr_list if p.position < 0)
-        str_scanner_short = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in self._scanner_short_list)
-        exchange_symbol_pairs_short = [f"{l.exchange}:{l.symbol}" for l in self._scanner_short_list]
+
+        ibkr_long_list = [p for p in self._ibkr_list if p.position > 0]
+        str_ibkr_long_1, str_ibkr_long_2, str_scanner_long_1, str_scanner_long_2 \
+        = self._positions_to_strings(ibkr_long_list, self._scanner_long_list)
+        ibkr_short_list = [p for p in self._ibkr_list if p.position < 0]
+        str_ibkr_short_1, str_ibkr_short_2, str_scanner_short_1, str_scanner_short_2 \
+        = self._positions_to_strings(ibkr_short_list, self._scanner_short_list)
+
+        exchange_symbol_pairs_ibkr_long = [f"{l.exchange}:{l.symbol}" for l in ibkr_long_list]
+        str_ratio_ibkr_1 = "(" + str_ibkr_long_1 + ") / (" + str_ibkr_short_1 + ")"
+        str_ratio_scanner_1 = "(" + str_scanner_long_1 + ") / (" + str_scanner_short_1 + ")"
+        str_ratio_ibkr_2 = "(" + str_ibkr_long_2 + ") / (" + str_ibkr_short_2 + ")"
+        str_ratio_scanner_2 = "(" + str_scanner_long_2 + ") / (" + str_scanner_short_2 + ")"
+        exchange_symbol_pairs_ibkr_short = [f"{l.exchange}:{l.symbol}" for l in ibkr_short_list]
 
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
 
-        watchlist_text = '\n'.join([str_ibkr_long, str_scanner_long]  + exchange_symbol_pairs_long
-                                 + [str_ibkr_short, str_scanner_short] + exchange_symbol_pairs_short
+        watchlist_text = '\n'.join(exchange_symbol_pairs_ibkr_long
+                                 + [str_ratio_ibkr_1]
+                                 + [str_ratio_scanner_1]
+                                 + [str_ratio_ibkr_2]
+                                 + [str_ratio_scanner_2]
+                                 + exchange_symbol_pairs_ibkr_short
                                  + index_pairs)
         self._util.create_text_file(text=watchlist_text, filename=self._analysis_file)
     
