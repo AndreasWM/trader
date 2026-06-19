@@ -14,7 +14,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 from lib.ibkr_market_order import IBKROrder, MarketOrder
-from lib.position import IBKRPosition
+from lib.position import IBKRPosition, ScannerPosition
 
 class StockUtil:
     def create_text_file(self, text: str, filename: str | Path):
@@ -64,6 +64,17 @@ class StockUtil:
                 positions.append(IBKRPosition(symbol=position.symbol.replace(' ', '.'), exchange=position.exchange, position=int(position.position)))
             return positions
         
+    def create_close_order(self, p: IBKRPosition) -> IBKROrder:
+        symbol=p.symbol.replace('.', ' ')
+        qty = abs(p.position)
+        action = "SELL" if p.position > 0 else "BUY"
+        print(f"Creating close order for {symbol}: action={action}, quantity={qty}")
+        return IBKROrder(
+            symbol=symbol,
+            qty=qty,
+            action=action
+        )
+    
     def create_invest_order(self, symbol: str, price: float, is_long: bool, capital_per_stock: float) -> IBKROrder:
         symbol=cast(str, symbol).replace('.', ' ')
         qty = round(capital_per_stock / price)
@@ -75,11 +86,14 @@ class StockUtil:
             action=action
         )
     
-    def create_close_order(self, p: IBKRPosition) -> IBKROrder:
-        symbol=p.symbol.replace('.', ' ')
-        qty = abs(p.position)
-        action = "SELL" if p.position > 0 else "BUY"
-        print(f"Creating close order for {symbol}: action={action}, quantity={qty}")
+    def create_update_order(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition, capital_per_stock: float) -> IBKROrder:
+        symbol=cast(str, ibkr_pos.symbol).replace('.', ' ')
+        value = abs(ibkr_pos.position) * scanner_pos.price
+        capital_diff = capital_per_stock - value
+        qty = round(capital_diff / scanner_pos.price)
+        action = "BUY" if ibkr_pos.position * qty > 0 else "SELL"
+        qty_abs = abs(qty)
+        print(f"Creating update order for {symbol}: action={action}, qty={qty_abs:.2f}, capital_per_stock={capital_per_stock:.2f}, price={scanner_pos.price:.2f}")
         return IBKROrder(
             symbol=symbol,
             qty=qty,

@@ -48,7 +48,7 @@ class StockList:
         self._flag_short = FLAG_SHORT
         self._leverage: float = LEVERAGE
         self._max_number_of_stocks: int = MAX_NUMBER_OF_STOCKS
-        self._min_market_cap =  MIN_MARKET_CAP
+        self._min_market_cap = MIN_MARKET_CAP
         self._number_of_stocks: int = NUMBER_OF_STOCKS
     
     def _calculate_capital_per_stock(self):
@@ -58,31 +58,34 @@ class StockList:
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
     
     def query(self, min_market_cap: int, is_long: bool) -> list[ScannerPosition]:
-        scanner_list: list[ScannerPosition] = self._sc.query_us_largecaps(
+        scanner_positions: list[ScannerPosition] = self._sc.query_us_largecaps(
             tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=is_long)
-        return scanner_list
+        return scanner_positions
 
     def _set_stock_lists(self):
-        self._ibkr_list: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
+        self._ibkr_positions: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
+        self._ibkr_long_positions = [p for p in self._ibkr_positions if p.position > 0]
+        self._ibkr_short_positions = [p for p in self._ibkr_positions if p.position < 0]
         self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(self._util.get_data_dir(trader=self._ibkr)))
 
-        self._scanner_long_list = self.query(min_market_cap=self._min_market_cap, is_long=True)
-        self._scanner_short_list = self.query(min_market_cap=self._min_market_cap, is_long=False)
-        self._scanner_list = []
+        self._scanner_long_positions = self.query(min_market_cap=self._min_market_cap, is_long=True)
+        self._scanner_short_positions = self.query(min_market_cap=self._min_market_cap, is_long=False)
+        self._scanner_positions = []
         if self._flag_long:
-            self._scanner_list += self._scanner_long_list
+            self._scanner_positions += self._scanner_long_positions
         if self._flag_short:
-            self._scanner_list += self._scanner_short_list
+            self._scanner_positions += self._scanner_short_positions
     
     def _set_symbol_lists(self):
-        stock_symbols = [p.symbol for p in self._ibkr_list]
-        self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_list]]
-        self._invest_symbols = [p.symbol for p in self._scanner_list if p.symbol not in stock_symbols]
+        stock_symbols = [p.symbol for p in self._ibkr_positions]
+        self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_positions]]
+        self._invest_symbols = [p.symbol for p in self._scanner_positions if p.symbol not in stock_symbols]
+        self._update_symbols = [symbol for symbol in stock_symbols if symbol in [s.symbol for s in self._scanner_positions]]
 
     def _set_lookups(self):
-        self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_list}
-        self.invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_list}
+        self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_positions}
+        self.invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_positions}
     
     def _ibkr_positions_to_string(self, positions: list[IBKRPosition]) -> str:
         return "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in positions)
@@ -98,22 +101,17 @@ class StockList:
         return str_ibkr_1, str_ibkr_2, str_scanner_1, str_scanner_2
     
     def _create_analysis_file(self):
-        self.long_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_long_list}
-        self.short_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_short_list}
-
-        ibkr_long_list = [p for p in self._ibkr_list if p.position > 0]
         str_ibkr_long_1, str_ibkr_long_2, str_scanner_long_1, str_scanner_long_2 \
-        = self._positions_to_strings(ibkr_long_list, self._scanner_long_list)
-        ibkr_short_list = [p for p in self._ibkr_list if p.position < 0]
+        = self._positions_to_strings(self._ibkr_long_positions, self._scanner_long_positions)
         str_ibkr_short_1, str_ibkr_short_2, str_scanner_short_1, str_scanner_short_2 \
-        = self._positions_to_strings(ibkr_short_list, self._scanner_short_list)
+        = self._positions_to_strings(self._ibkr_short_positions, self._scanner_short_positions)
 
-        exchange_symbol_pairs_ibkr_long = [f"{l.exchange}:{l.symbol}" for l in ibkr_long_list]
-        str_ratio_ibkr_1 = "(" + str_ibkr_long_1 + ") / (" + str_ibkr_short_1 + ")"
-        str_ratio_scanner_1 = "(" + str_scanner_long_1 + ") / (" + str_scanner_short_1 + ")"
-        str_ratio_ibkr_2 = "(" + str_ibkr_long_2 + ") / (" + str_ibkr_short_2 + ")"
-        str_ratio_scanner_2 = "(" + str_scanner_long_2 + ") / (" + str_scanner_short_2 + ")"
-        exchange_symbol_pairs_ibkr_short = [f"{l.exchange}:{l.symbol}" for l in ibkr_short_list]
+        exchange_symbol_pairs_ibkr_long = [f"{l.exchange}:{l.symbol}" for l in self._ibkr_long_positions]
+        str_ratio_ibkr_1 = "(" + str_ibkr_long_1 + ") / (" + str_ibkr_short_1 + ") * 1000"
+        str_ratio_scanner_1 = "(" + str_scanner_long_1 + ") / (" + str_scanner_short_1 + ") * 1000"
+        str_ratio_ibkr_2 = "(" + str_ibkr_long_2 + ") / (" + str_ibkr_short_2 + ") * 1000"
+        str_ratio_scanner_2 = "(" + str_scanner_long_2 + ") / (" + str_scanner_short_2 + ") * 1000"
+        exchange_symbol_pairs_ibkr_short = [f"{l.exchange}:{l.symbol}" for l in self._ibkr_short_positions]
 
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
 
@@ -132,14 +130,18 @@ class OrderList:
         self._util = StockUtil()
         self.orders = []
 
-    def invest(self, scanner_pos: ScannerPosition):
-        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, is_long=scanner_pos.is_long, capital_per_stock=self._capital_per_stock)
-        self.orders.append(order)
-    
     def close(self, ibkr_pos: IBKRPosition):
         order = self._util.create_close_order(ibkr_pos)
         self.orders.append(order)
 
+    def invest(self, scanner_pos: ScannerPosition):
+        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, is_long=scanner_pos.is_long, capital_per_stock=self._capital_per_stock)
+        self.orders.append(order)
+    
+    def update(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition):
+        order = self._util.create_update_order(ibkr_pos=ibkr_pos, scanner_pos=scanner_pos, capital_per_stock=self._capital_per_stock)
+        self.orders.append(order)
+    
 class PortfolioManager:
     def __init__(self, skip_confirm: bool = False):
         print("#" * 120)
@@ -157,7 +159,8 @@ class PortfolioManager:
     def create_orders(self):
         self.create_close_orders()
         self.create_invest_orders()
-    
+        self.create_update_orders()
+
     def invest(self):
         is_executed = self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
         if is_executed:
@@ -196,9 +199,16 @@ class PortfolioManager:
 
     def create_invest_orders(self):
         for symbol in self._stock_list._invest_symbols:
-            scan_pos = self._stock_list.invest_lookup.get(symbol)
-            if scan_pos is not None:
-                self._order_list.invest(scanner_pos=scan_pos)
+            scanner_pos = self._stock_list.invest_lookup.get(symbol)
+            if scanner_pos is not None:
+                self._order_list.invest(scanner_pos=scanner_pos)
+
+    def create_update_orders(self):
+        for symbol in self._stock_list._update_symbols:
+            ibkr_pos = self._stock_list.stock_lookup.get(symbol)
+            scanner_pos = self._stock_list.invest_lookup.get(symbol)
+            if ibkr_pos is not None and scanner_pos is not None:
+                self._order_list.update(ibkr_pos=ibkr_pos, scanner_pos=scanner_pos)
 
     def disconnect(self):
         self._ibkr.disconnect()
