@@ -15,66 +15,66 @@ if project_root not in sys.path:
 from lib.position import ScannerPosition
 
 class TV_Scanner:
-    def __init__(self):
-        # Erkennung der Umgebung
-        if self.is_wsl():
-            print("🔍 WSL erkannt. Nutze Windows-Cookie-Mapping...")
-            self._cookies = self.load_wsl_cookies()
-        else:
-            print("🔍 Natives Linux erkannt. Nutze Standardpfade...")
-            try:
-                cookies_raw = rookiepy.chrome(['.tradingview.com'])
-                self._cookies = rookiepy.to_cookiejar(cookies_raw)
-            except Exception as e:
-                print(f"❌ Fehler beim Laden der nativen Cookies: {e}")
-                self._cookies = None
+    # def __init__(self):
+    #     # Erkennung der Umgebung
+    #     if self.is_wsl():
+    #         print("🔍 WSL erkannt. Nutze Windows-Cookie-Mapping...")
+    #         self._cookies = self.load_wsl_cookies()
+    #     else:
+    #         print("🔍 Natives Linux erkannt. Nutze Standardpfade...")
+    #         try:
+    #             cookies_raw = rookiepy.chrome(['.tradingview.com'])
+    #             self._cookies = rookiepy.to_cookiejar(cookies_raw)
+    #         except Exception as e:
+    #             print(f"❌ Fehler beim Laden der nativen Cookies: {e}")
+    #             self._cookies = None
 
-    def is_wsl(self) -> bool:
-        """Prüft, ob das Skript innerhalb von WSL läuft."""
-        try:
-            with open("/proc/version", "r") as f:
-                return "microsoft" in f.read().lower()
-        except:
-            return False
+    # def is_wsl(self) -> bool:
+    #     """Prüft, ob das Skript innerhalb von WSL läuft."""
+    #     try:
+    #         with open("/proc/version", "r") as f:
+    #             return "microsoft" in f.read().lower()
+    #     except:
+    #         return False
 
-    def load_wsl_cookies(self):
-        """Kopiert Windows-Cookies in das WSL-Dateisystem und lädt sie."""
-        win_user = "moell"
-        # Pfade definieren
-        win_cookie_path = Path(f"/mnt/c/Users/{win_user}/AppData/Local/Google/Chrome/User Data/Default/Network/Cookies")
-        linux_chrome_dir = Path.home() / ".config/google-chrome/Default/Network"
-        linux_cookie_file = linux_chrome_dir / "Cookies"
+    # def load_wsl_cookies(self):
+    #     """Kopiert Windows-Cookies in das WSL-Dateisystem und lädt sie."""
+    #     win_user = "moell"
+    #     # Pfade definieren
+    #     win_cookie_path = Path(f"/mnt/c/Users/{win_user}/AppData/Local/Google/Chrome/User Data/Default/Network/Cookies")
+    #     linux_chrome_dir = Path.home() / ".config/google-chrome/Default/Network"
+    #     linux_cookie_file = linux_chrome_dir / "Cookies"
 
-        try:
-            # 1. Zielverzeichnis sicherstellen
-            linux_chrome_dir.mkdir(parents=True, exist_ok=True)
+    #     try:
+    #         # 1. Zielverzeichnis sicherstellen
+    #         linux_chrome_dir.mkdir(parents=True, exist_ok=True)
             
-            # 2. Profil-Check (Default vs Profile 1)
-            final_win_path = win_cookie_path
-            if not final_win_path.exists():
-                alt_path = Path(str(win_cookie_path).replace("Default", "Profile 1"))
-                if alt_path.exists():
-                    final_win_path = alt_path
-                else:
-                    raise FileNotFoundError(f"Windows Cookie-Datei nicht gefunden unter {win_cookie_path}")
+    #         # 2. Profil-Check (Default vs Profile 1)
+    #         final_win_path = win_cookie_path
+    #         if not final_win_path.exists():
+    #             alt_path = Path(str(win_cookie_path).replace("Default", "Profile 1"))
+    #             if alt_path.exists():
+    #                 final_win_path = alt_path
+    #             else:
+    #                 raise FileNotFoundError(f"Windows Cookie-Datei nicht gefunden unter {win_cookie_path}")
 
-            # 3. Kopieren (shutil.copy2 erhält Metadaten, shutil.copy ist oft unproblematischer bei Rechten)
-            # Wir nutzen hier copy, um Schreibrechte-Probleme im Ziel zu minimieren
-            shutil.copy(str(final_win_path), str(linux_cookie_file))
+    #         # 3. Kopieren (shutil.copy2 erhält Metadaten, shutil.copy ist oft unproblematischer bei Rechten)
+    #         # Wir nutzen hier copy, um Schreibrechte-Probleme im Ziel zu minimieren
+    #         shutil.copy(str(final_win_path), str(linux_cookie_file))
             
-            # 4. Laden via rookiepy (sucht standardmäßig in ~/.config/google-chrome)
-            cookies_raw = rookiepy.chrome([".tradingview.com"])
-            return rookiepy.to_cookiejar(cookies_raw)
+    #         # 4. Laden via rookiepy (sucht standardmäßig in ~/.config/google-chrome)
+    #         cookies_raw = rookiepy.chrome([".tradingview.com"])
+    #         return rookiepy.to_cookiejar(cookies_raw)
 
-        except Exception as e:
-            print(f"❌ WSL-Cookie-Fehler: {e}")
-            return None
+    #     except Exception as e:
+    #         print(f"❌ WSL-Cookie-Fehler: {e}")
+    #         return None
         
     def safe_float(self, value, default=0.0):
         return float(value) if value is not None else default
     
-    def always_true(self):
-        return Column("exchange") != "INVALID"
+    # def always_true(self):
+    #     return Column("exchange") != "INVALID"
 
     def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int,
                            length: int, capital_per_stock: float, is_long: bool) -> list[ScannerPosition]:
@@ -124,7 +124,7 @@ class TV_Scanner:
             .order_by(column_perf_ytd, ascending=False if is_long else True) \
             .limit(length)
         
-        _, scanner_data = q.get_scanner_data(cookies=self._cookies)
+        _, scanner_data = q.get_scanner_data()# cookies=self._cookies)
         
         scanner_data = scanner_data.drop(columns=['ticker'])
         scanner_data = scanner_data.rename(columns={
