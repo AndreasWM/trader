@@ -76,7 +76,7 @@ class TV_Scanner:
     # def always_true(self):
     #     return Column("exchange") != "INVALID"
 
-    def query_us_largecaps(self, tickers_to_exclude: list[str], market_cap: int,
+    def query_us_ytd(self, tickers_to_exclude: list[str], market_cap: int,
                            length: int, capital_per_stock: float, is_long: bool) -> list[ScannerPosition]:
         column_perf_ytd = 'Perf.YTD'
         cond_limit_size = Column('close') < capital_per_stock

@@ -58,7 +58,7 @@ class StockList:
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
     
     def query(self, min_market_cap: int, is_long: bool) -> list[ScannerPosition]:
-        scanner_positions: list[ScannerPosition] = self._sc.query_us_largecaps(
+        scanner_positions: list[ScannerPosition] = self._sc.query_us_ytd(
             tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=is_long)
         return scanner_positions
