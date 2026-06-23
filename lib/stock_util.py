@@ -86,11 +86,14 @@ class StockUtil:
             action=action
         )
     
-    def create_update_order(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition, capital_per_stock: float) -> IBKROrder:
-        symbol=cast(str, ibkr_pos.symbol).replace('.', ' ')
+    def calc_qty(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition, capital_per_stock: float) -> int:
         value = abs(ibkr_pos.position) * scanner_pos.price
         capital_diff = capital_per_stock - value
         qty = round(capital_diff / scanner_pos.price)
+        return qty
+
+    def create_update_order(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition, capital_per_stock: float, qty: int) -> IBKROrder:
+        symbol=cast(str, ibkr_pos.symbol).replace('.', ' ')
         action = "BUY" if ibkr_pos.position * qty > 0 else "SELL"
         qty_abs = abs(qty)
         print(f"Creating update order for {symbol}: action={action}, qty={qty_abs:.2f}, capital_per_stock={capital_per_stock:.2f}, price={scanner_pos.price:.2f}")

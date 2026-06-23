@@ -139,8 +139,10 @@ class OrderList:
         self.orders.append(order)
     
     def update(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition):
-        order = self._util.create_update_order(ibkr_pos=ibkr_pos, scanner_pos=scanner_pos, capital_per_stock=self._capital_per_stock)
-        self.orders.append(order)
+        qty = self._util.calc_qty(ibkr_pos=ibkr_pos, scanner_pos=scanner_pos, capital_per_stock=self._capital_per_stock)
+        if qty > 0:
+            order = self._util.create_update_order(ibkr_pos=ibkr_pos, scanner_pos=scanner_pos, capital_per_stock=self._capital_per_stock, qty=qty)
+            self.orders.append(order)
     
 class PortfolioManager:
     def __init__(self, skip_confirm: bool = False):
