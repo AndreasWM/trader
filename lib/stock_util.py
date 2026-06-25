@@ -99,7 +99,7 @@ class StockUtil:
         print(f"Creating update order for {symbol}: action={action}, qty={qty_abs:.2f}, capital_per_stock={capital_per_stock:.2f}, price={scanner_pos.price:.2f}")
         return IBKROrder(
             symbol=symbol,
-            qty=qty,
+            qty=qty_abs,
             action=action
         )
     
