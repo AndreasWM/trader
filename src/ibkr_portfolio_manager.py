@@ -61,12 +61,14 @@ class StockList:
     
     def query_long(self, min_market_cap: int) -> list[ScannerPosition]:
         number_of_stocks = self._number_of_stocks // 2
-        self._scanner_positions_dividends = self._sc.query_us_ytd(
-            tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
-            length=number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=True, dividends_percent=self._dividends_percent)
         self._scanner_positions_high_performance = self._sc.query_us_ytd(
             tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
             length=number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=True, dividends_percent=None)
+        high_performance_symbols = [p.symbol for p in self._scanner_positions_high_performance]
+        unwanted_tickers = self._unwanted_tickers + high_performance_symbols
+        self._scanner_positions_dividends = self._sc.query_us_ytd(
+            unwanted_tickers, market_cap=min_market_cap, length=number_of_stocks,
+            capital_per_stock=self.capital_per_stock, is_long=True, dividends_percent=self._dividends_percent)
         scanner_positions = self._scanner_positions_high_performance + self._scanner_positions_dividends
         return scanner_positions
 
@@ -106,6 +108,19 @@ class StockList:
     def _scanner_positions_to_string(self, positions: list[ScannerPosition]) -> str:
         return "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in positions)
     
+    def _create_sum_for_ratio(self, is_long: bool, number_of_stocks: int) -> str:
+        scanner_positions = self._sc.query_us_ytd(
+            tickers_to_exclude=self._unwanted_tickers, market_cap=self._min_market_cap,
+            length=number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=is_long, dividends_percent=None)
+        str_sum = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in scanner_positions)
+        return str_sum
+    
+    def _create_ratio_string(self) -> str:
+        str_divisor = self._create_sum_for_ratio(is_long=True, number_of_stocks=5)
+        str_dividend = self._create_sum_for_ratio(is_long=False, number_of_stocks=5)
+        str_ratio = "(" + str_divisor+ ") / (" + str_dividend + ") * 1000"
+        return str_ratio
+    
     def _create_analysis_file(self):
         str_ibkr_long_1 = self._ibkr_positions_to_string(positions=self._ibkr_long_positions[:10])
         str_ibkr_long_2 = self._ibkr_positions_to_string(positions=self._ibkr_long_positions[10:20])
@@ -118,6 +133,7 @@ class StockList:
         str_scanner_short_2 = self._scanner_positions_to_string(positions=self._scanner_short_positions[10:20])
         exchange_symbol_pairs_ibkr_short = [f"{l.exchange}:{l.symbol}" for l in self._ibkr_short_positions]
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
+        str_ratio = self._create_ratio_string()
 
         watchlist_text = '\n'.join([str_ibkr_long_1]
                                  + [str_ibkr_long_2]
@@ -125,11 +141,12 @@ class StockList:
                                  + [str_scanner_dividends]
                                  + exchange_symbol_pairs_ibkr_long
                                  + [str_ibkr_short_1]
-                                 + [str_ibkr_short_2]
                                  + [str_scanner_short_1]
+                                 + [str_ibkr_short_2]
                                  + [str_scanner_short_2]
                                  + exchange_symbol_pairs_ibkr_short
-                                 + index_pairs)
+                                 + index_pairs
+                                 + [str_ratio])
         self._util.create_text_file(text=watchlist_text, filename=self._analysis_file)
     
 class OrderList:
