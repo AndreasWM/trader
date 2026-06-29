@@ -13,6 +13,9 @@ class Position:
             return False
         return self.symbol == other.symbol
     
+    def __lt__(self, other):
+        return self.symbol < other.symbol
+
     def __hash__(self):
         return hash(self.symbol)
 

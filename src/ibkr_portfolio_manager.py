@@ -17,10 +17,11 @@ from lib.yfinance_ticker import YfinanceTicker
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-ANALYSIS_FILE = BASE_DIR / 'data' / 'Analysis_Prod.txt'
+ANALYSIS_FILE = BASE_DIR / 'data' / 'Analysis_Test.txt'
 CAPITAL_RESERVE = 0
 DIVIDENDS_PERCENT = 3.0
-FLAG_LONG = True
+FLAG_LONG_HIGH_PERFORMANCE = True
+FLAG_LONG_DIVIDENDS = False
 FLAG_SHORT = True
 LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 20
@@ -46,7 +47,8 @@ class StockList:
         self._analysis_file = ANALYSIS_FILE
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
         self._dividends_percent = DIVIDENDS_PERCENT
-        self._flag_long = FLAG_LONG
+        self._flag_long_high_performance = FLAG_LONG_HIGH_PERFORMANCE
+        self._flag_long_dividends = FLAG_LONG_DIVIDENDS
         self._flag_short = FLAG_SHORT
         self._leverage: float = LEVERAGE
         self._max_number_of_stocks: int = MAX_NUMBER_OF_STOCKS
@@ -59,18 +61,17 @@ class StockList:
         investment_capacity=net_liquidation - self._capital_reserve
         self.capital_per_stock = investment_capacity * self._leverage / self._max_number_of_stocks
     
-    def query_long(self, min_market_cap: int) -> list[ScannerPosition]:
-        number_of_stocks = self._number_of_stocks // 2
-        self._scanner_positions_high_performance = self._sc.query_us_ytd(
+    def query_long(self, min_market_cap: int) -> tuple[list[ScannerPosition], list[ScannerPosition]]:
+        number_of_stocks = self._number_of_stocks
+        positions_high_performance = self._sc.query_us_ytd(
             tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
             length=number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=True, dividends_percent=None)
-        high_performance_symbols = [p.symbol for p in self._scanner_positions_high_performance]
+        high_performance_symbols = [p.symbol for p in positions_high_performance]
         unwanted_tickers = self._unwanted_tickers + high_performance_symbols
-        self._scanner_positions_dividends = self._sc.query_us_ytd(
+        positions_dividends = self._sc.query_us_ytd(
             unwanted_tickers, market_cap=min_market_cap, length=number_of_stocks,
             capital_per_stock=self.capital_per_stock, is_long=True, dividends_percent=self._dividends_percent)
-        scanner_positions = self._scanner_positions_high_performance + self._scanner_positions_dividends
-        return scanner_positions
+        return positions_high_performance, positions_dividends
 
     def query_short(self, min_market_cap: int) -> list[ScannerPosition]:
         scanner_positions: list[ScannerPosition] = self._sc.query_us_ytd(
@@ -81,14 +82,20 @@ class StockList:
     def _set_stock_lists(self):
         self._ibkr_positions: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
         self._ibkr_long_positions = [p for p in self._ibkr_positions if p.position > 0]
+        self._ibkr_long_positions.sort()
         self._ibkr_short_positions = [p for p in self._ibkr_positions if p.position < 0]
+        self._ibkr_short_positions.sort()
         self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(self._util.get_data_dir(trader=self._ibkr)))
 
-        self._scanner_long_positions = self.query_long(min_market_cap=self._min_market_cap)
+        self._scanner_positions_high_performance, self._scanner_positions_dividends = self.query_long(min_market_cap=self._min_market_cap)
+        self._scanner_positions_high_performance.sort()
         self._scanner_short_positions = self.query_short(min_market_cap=self._min_market_cap)
+        self._scanner_short_positions.sort()
         self._scanner_positions = []
-        if self._flag_long:
-            self._scanner_positions += self._scanner_long_positions
+        if self._flag_long_high_performance:
+            self._scanner_positions += self._scanner_positions_high_performance
+        if self._flag_long_dividends:
+            self._scanner_positions += self._scanner_positions_dividends
         if self._flag_short:
             self._scanner_positions += self._scanner_short_positions
     
@@ -124,8 +131,9 @@ class StockList:
     def _create_analysis_file(self):
         str_ibkr_long_1 = self._ibkr_positions_to_string(positions=self._ibkr_long_positions[:10])
         str_ibkr_long_2 = self._ibkr_positions_to_string(positions=self._ibkr_long_positions[10:20])
-        str_scanner_high_performance = self._scanner_positions_to_string(positions=self._scanner_positions_high_performance)
-        str_scanner_dividends = self._scanner_positions_to_string(positions=self._scanner_positions_dividends)
+        str_scanner_high_performance_1 = self._scanner_positions_to_string(positions=self._scanner_positions_high_performance[:10])
+        str_scanner_high_performance_2 = self._scanner_positions_to_string(positions=self._scanner_positions_high_performance[10:20])
+        # str_scanner_dividends = self._scanner_positions_to_string(positions=self._scanner_positions_dividends)
         exchange_symbol_pairs_ibkr_long = [f"{l.exchange}:{l.symbol}" for l in self._ibkr_long_positions]
         str_ibkr_short_1 = self._ibkr_positions_to_string(positions=self._ibkr_short_positions[:10])
         str_ibkr_short_2 = self._ibkr_positions_to_string(positions=self._ibkr_short_positions[10:20])
@@ -136,9 +144,9 @@ class StockList:
         str_ratio = self._create_ratio_string()
 
         watchlist_text = '\n'.join([str_ibkr_long_1]
+                                 + [str_scanner_high_performance_1]
                                  + [str_ibkr_long_2]
-                                 + [str_scanner_high_performance]
-                                 + [str_scanner_dividends]
+                                 + [str_scanner_high_performance_2]
                                  + exchange_symbol_pairs_ibkr_long
                                  + [str_ibkr_short_1]
                                  + [str_scanner_short_1]
