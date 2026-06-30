@@ -22,7 +22,8 @@ class TV_Scanner:
         return Column("exchange") != "INVALID"
 
     def query_us_ytd(self, tickers_to_exclude: list[str], market_cap: int,
-                           length: int, capital_per_stock: float, is_long: bool, dividends_percent: float|None) -> list[ScannerPosition]:
+                           length: int, capital_per_stock: float, is_long: bool#, dividends_percent: float|None
+                           ) -> list[ScannerPosition]:
         column_perf_ytd = 'Perf.YTD'
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type').isin(['stock','dr'])
@@ -30,7 +31,7 @@ class TV_Scanner:
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
         cond_perf_ytd = Column(column_perf_ytd) > 0.0 if is_long else Column(column_perf_ytd) < 0.0
-        cond_dividends = self.always_true() if dividends_percent is None else Column('dividends_yield') > dividends_percent
+        # cond_dividends = self.always_true() if dividends_percent is None else Column('dividends_yield') > dividends_percent
         cond_macd_hist = Column('MACD.hist|1W') > 0.0 if is_long else Column('MACD.hist|1W') < 0.0
         conditions = [
             cond_limit_size,
@@ -39,7 +40,7 @@ class TV_Scanner:
             cond_exchange,
             cond_market_cap,
             cond_perf_ytd,
-            cond_dividends,
+            # cond_dividends,
             cond_macd_hist,
         ]
         if tickers_to_exclude:
