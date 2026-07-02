@@ -61,7 +61,8 @@ class StockUtil:
         else:
             positions = []
             for position in ibkr_positions:
-                positions.append(IBKRPosition(symbol=position.symbol.replace(' ', '.'), exchange=position.exchange, position=int(position.position)))
+                if position.symbol not in ("WSO B"):
+                    positions.append(IBKRPosition(symbol=position.symbol.replace(' ', '.'), exchange=position.exchange, position=int(position.position)))
             return positions
         
     def create_close_order(self, p: IBKRPosition) -> IBKROrder:
