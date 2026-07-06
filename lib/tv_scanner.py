@@ -22,7 +22,7 @@ class TV_Scanner:
         return Column("exchange") != "INVALID"
 
     def query_us_ytd(self, tickers_to_exclude: list[str], market_cap: int,
-                           length: int, capital_per_stock: float, is_long: bool#, dividends_percent: float|None
+                           length: int, capital_per_stock: float, is_long: bool
                            ) -> list[ScannerPosition]:
         column_perf_ytd = 'Perf.YTD'
         cond_limit_size = Column('close') < capital_per_stock
@@ -31,8 +31,8 @@ class TV_Scanner:
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
         cond_perf_ytd = Column(column_perf_ytd) > 0.0 if is_long else Column(column_perf_ytd) < 0.0
-        # cond_dividends = self.always_true() if dividends_percent is None else Column('dividends_yield') > dividends_percent
-        cond_macd_hist = Column('MACD.hist|1W') > 0.0 if is_long else Column('MACD.hist|1W') < 0.0
+        cond_macd = Column('MACD.macd|1W') > Column('MACD.signal|1W') if is_long else Column('MACD.macd|1W') < Column('MACD.signal|1W')
+        cond_strong_1M = Column('Recommend.All|1M') > 0.5 if is_long else Column('Recommend.All|1M') < -0.5
         conditions = [
             cond_limit_size,
             cond_stocktype,
@@ -40,8 +40,8 @@ class TV_Scanner:
             cond_exchange,
             cond_market_cap,
             cond_perf_ytd,
-            # cond_dividends,
-            cond_macd_hist,
+            cond_macd,
+            cond_strong_1M,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -55,9 +55,11 @@ class TV_Scanner:
                 'exchange',
                 'type',
                 'subtype',
+                'Perf.YTD',
                 'market_cap_basic',
-                'dividends_yield',
-                'MACD.hist|1W',
+                'MACD.macd|1W',
+                'MACD.signal|1W',
+                'Recommend.All|1M',
             ) \
             .where(*conditions) \
             .order_by(column_perf_ytd, ascending=False if is_long else True) \
@@ -71,8 +73,10 @@ class TV_Scanner:
             "close": "price",
         })
         
+        # print(",".join(scanner_data.columns))
         pos_list = []
         for _, row in scanner_data.iterrows():
+            # print(",".join(str(v) for v in row.values))
             symbol = row['symbol']
             price = self.safe_float(row['price'])
             premarket_change = self.safe_float(row['premarket_change'])

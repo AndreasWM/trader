@@ -53,17 +53,14 @@ class StockUtil:
         
         return symbols
     
-    def get_data_dir_linux(self) -> str:
-        return HOME_DIR_LINUX + DATA_DIR
-
-    def _get_data_dir_windows(self) -> str:
-        return HOME_DIR_WINDOWS + DATA_DIR
+    def _get_home_dir(self) -> str:
+        if self.detect_ib_host() == "127.0.0.1":
+            return HOME_DIR_LINUX
+        else:
+            return HOME_DIR_WINDOWS
 
     def get_data_dir(self) -> str:
-        if self.detect_ib_host() == "127.0.0.1":
-            return self.get_data_dir_linux()
-        else:
-            return self._get_data_dir_windows()
+        return self._get_home_dir() + DATA_DIR
 
     def get_latest_file(self, dir: str, pattern: str) -> str:
         pattern = os.path.join(dir, pattern+'*.csv')
