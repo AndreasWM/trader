@@ -79,7 +79,7 @@ class StockList:
         self._ibkr_long_positions.sort()
         self._ibkr_short_positions = [p for p in self._ibkr_positions if p.position < 0 and not self._flag_reverse or p.position > 0 and self._flag_reverse]
         self._ibkr_short_positions.sort()
-        self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_watchlist_file(self._util.get_data_dir(trader=self._ibkr)))
+        self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_do_not_trade_file())
 
         self._scanner_long_positions = self.query_long(min_market_cap=self._min_market_cap)
         self._scanner_long_positions.sort()

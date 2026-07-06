@@ -1,6 +1,5 @@
 import threading
 import time
-import subprocess
 
 from typing import List, Optional, Deque, Tuple, Callable
 from collections import deque
@@ -86,21 +85,6 @@ class MarketOrder(EClient, EWrapper):
         if False:
             time.sleep(seconds)
 
-    def detect_ib_host(self) -> str:
-        # 1. Check: Läuft das Skript in WSL?
-        if "microsoft" in subprocess.check_output("uname -a", shell=True).decode().lower():
-            try:
-                # Hol die IP des Windows-Hosts (das Gateway)
-                cmd = "ip route show | grep default | awk '{print $3}'"
-                host_ip = subprocess.check_output(cmd, shell=True).decode().strip()
-                if host_ip:
-                    return host_ip
-            except Exception:
-                pass
-        
-        # 2. Fallback: Wenn echter Ubuntu-PC oder WSL-Erkennung fehlschlägt
-        return "127.0.0.1"
-        
     # -----------------------------
     # Wrapper-Callbacks (Kern)
     # -----------------------------

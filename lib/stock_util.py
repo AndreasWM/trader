@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import glob
+import subprocess
 from typing import cast
 from pathlib import Path
 
@@ -16,7 +17,26 @@ if project_root not in sys.path:
 from lib.ibkr_market_order import IBKROrder, MarketOrder
 from lib.position import IBKRPosition, ScannerPosition
 
+HOME_DIR_LINUX = '/home/andreas/'
+HOME_DIR_WINDOWS = '/mnt/c/Users/moell/'
+DATA_DIR = 'Downloads/data/'
+
 class StockUtil:
+    def detect_ib_host(self) -> str:
+        # 1. Check: Läuft das Skript in WSL?
+        if "microsoft" in subprocess.check_output("uname -a", shell=True).decode().lower():
+            try:
+                # Hol die IP des Windows-Hosts (das Gateway)
+                cmd = "ip route show | grep default | awk '{print $3}'"
+                host_ip = subprocess.check_output(cmd, shell=True).decode().strip()
+                if host_ip:
+                    return host_ip
+            except Exception:
+                pass
+        
+        # 2. Fallback: Wenn echter Ubuntu-PC oder WSL-Erkennung fehlschlägt
+        return "127.0.0.1"
+        
     def create_text_file(self, text: str, filename: str | Path):
         with open(filename, 'w') as f:
             f.write(text)
@@ -34,25 +54,34 @@ class StockUtil:
         return symbols
     
     def get_data_dir_linux(self) -> str:
-        return '/home/andreas/github/trader/data'
+        return HOME_DIR_LINUX + DATA_DIR
 
     def _get_data_dir_windows(self) -> str:
-        return '/mnt/c/Users/moell/Downloads/trader/data'
+        return HOME_DIR_WINDOWS + DATA_DIR
 
-    def get_data_dir(self, trader: MarketOrder) -> str:
-        if trader.detect_ib_host() == "127.0.0.1":
+    def get_data_dir(self) -> str:
+        if self.detect_ib_host() == "127.0.0.1":
             return self.get_data_dir_linux()
         else:
             return self._get_data_dir_windows()
 
-    def get_latest_watchlist_file(self, dir: str) -> str:
-        pattern = os.path.join(dir, 'Watchlist*.csv')
+    def get_latest_file(self, dir: str, pattern: str) -> str:
+        pattern = os.path.join(dir, pattern+'*.csv')
         files = glob.glob(pattern)
         
         if not files:
-            raise FileNotFoundError(f"Keine Datei mit Muster 'Watchlist*.csv' in {dir}")
+            raise FileNotFoundError(f"Keine Datei mit Muster '{pattern}*.csv' in {dir}")
         
         return max(files, key=os.path.getmtime)
+    
+    def get_latest_do_not_trade_file(self) -> str:
+        return self.get_latest_file(dir=self.get_data_dir(), pattern='DoNotTrade')
+    
+    def get_latest_watchlist_file(self) -> str:
+        return self.get_latest_file(dir=self.get_data_dir(), pattern='Watchlist')
+    
+    def get_output_file(self, filename: str) -> str:
+        return self.get_data_dir() + filename
     
     def ibkr_positions(self, trader: MarketOrder) -> list[IBKRPosition]:
         ibkr_positions = trader.get_stock_positions(timeout=10.0)
