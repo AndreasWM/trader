@@ -25,6 +25,7 @@ FLAG_ONLY_UPDATES = False
 LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 20
 MIN_MARKET_CAP = 10_000_000_000
+MIN_PERFORMANCE = 50.0
 NUMBER_OF_STOCKS = 20
 
 class StockList:
@@ -50,6 +51,7 @@ class StockList:
         self._leverage: float = LEVERAGE
         self._max_number_of_stocks: int = MAX_NUMBER_OF_STOCKS
         self._min_market_cap = MIN_MARKET_CAP
+        self._min_performance = MIN_PERFORMANCE
         self._number_of_stocks: int = NUMBER_OF_STOCKS
     
     def _calculate_capital_per_stock(self):
@@ -60,13 +62,13 @@ class StockList:
     
     def query_long(self, min_market_cap: int) -> list[ScannerPosition]:
         number_of_stocks = self._number_of_stocks
-        positions = self._sc.query_us_ytd(
+        positions = self._sc.query_us(min_perf=self._min_performance,
             tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
             length=number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=True)
         return positions
 
     def query_short(self, min_market_cap: int) -> list[ScannerPosition]:
-        scanner_positions: list[ScannerPosition] = self._sc.query_us_ytd(
+        scanner_positions: list[ScannerPosition] = self._sc.query_us(min_perf=self._min_performance,
             tickers_to_exclude=self._unwanted_tickers, market_cap=min_market_cap,
             length=self._number_of_stocks, capital_per_stock=self.capital_per_stock, is_long=False)
         return scanner_positions
@@ -74,15 +76,11 @@ class StockList:
     def _set_stock_lists(self):
         self._ibkr_positions: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
         self._ibkr_long_positions = [p for p in self._ibkr_positions if p.position > 0]
-        # self._ibkr_long_positions.sort()
         self._ibkr_short_positions = [p for p in self._ibkr_positions if p.position < 0]
-        # self._ibkr_short_positions.sort()
         self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_do_not_trade_file())
 
         self._scanner_long_positions = self.query_long(min_market_cap=self._min_market_cap)
-        # self._scanner_long_positions.sort()
         self._scanner_short_positions = self.query_short(min_market_cap=self._min_market_cap)
-        # self._scanner_short_positions.sort()
         self._scanner_positions = []
         if self._flag_long:
             self._scanner_positions += self._scanner_long_positions

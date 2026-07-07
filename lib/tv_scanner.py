@@ -21,18 +21,15 @@ class TV_Scanner:
     def always_true(self):
         return Column("exchange") != "INVALID"
 
-    def query_us_ytd(self, tickers_to_exclude: list[str], market_cap: int,
+    def query_us(self, tickers_to_exclude: list[str], min_perf: float, market_cap: int,
                            length: int, capital_per_stock: float, is_long: bool
                            ) -> list[ScannerPosition]:
-        column_perf_ytd = 'Perf.YTD'
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type').isin(['stock','dr'])
         cond_subtype = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
-        cond_perf_ytd = Column(column_perf_ytd) > 0.0 if is_long else Column(column_perf_ytd) < 0.0
-        cond_macd = Column('MACD.macd|1W') > Column('MACD.signal|1W') if is_long else Column('MACD.macd|1W') < Column('MACD.signal|1W')
-        cond_strong_1M = Column('Recommend.All|1M') > 0.5 if is_long else Column('Recommend.All|1M') < -0.5
+        cond_perf_ytd = Column('Perf.YTD') > min_perf
         conditions = [
             cond_limit_size,
             cond_stocktype,
@@ -40,8 +37,6 @@ class TV_Scanner:
             cond_exchange,
             cond_market_cap,
             cond_perf_ytd,
-            cond_macd,
-            cond_strong_1M,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -56,13 +51,14 @@ class TV_Scanner:
                 'type',
                 'subtype',
                 'Perf.YTD',
+                'Perf.W',
                 'market_cap_basic',
                 'MACD.macd|1W',
                 'MACD.signal|1W',
                 'Recommend.All|1M',
             ) \
             .where(*conditions) \
-            .order_by(column_perf_ytd, ascending=False if is_long else True) \
+            .order_by('Perf.W', ascending=False if is_long else True) \
             .limit(length)
         
         _, scanner_data = q.get_scanner_data()
