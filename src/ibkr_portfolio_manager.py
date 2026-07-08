@@ -103,18 +103,6 @@ class StockList:
     def _scanner_positions_to_string(self, positions: list[ScannerPosition]) -> str:
         return "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in positions)
     
-    def _create_sum_for_ratio(self, scanner_positions: list[ScannerPosition], part_no: int) -> str:
-        last_index = part_no * 5
-        first_index = last_index - 5
-        str_sum = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in scanner_positions[first_index:last_index])
-        return str_sum
-    
-    def _create_ratio_string(self, part_no: int) -> str:
-        str_divisor = self._create_sum_for_ratio(scanner_positions=self._scanner_long_positions, part_no=part_no)
-        str_dividend = self._create_sum_for_ratio(scanner_positions=self._scanner_short_positions, part_no=part_no)
-        str_ratio = "(" + str_divisor+ ") / (" + str_dividend + ") * 1000"
-        return str_ratio
-    
     def _create_analysis_file(self):
         str_ibkr_long_1 = self._ibkr_positions_to_string(positions=self._ibkr_long_positions[:10])
         str_ibkr_long_2 = self._ibkr_positions_to_string(positions=self._ibkr_long_positions[10:20])
@@ -127,8 +115,6 @@ class StockList:
         str_scanner_short_2 = self._scanner_positions_to_string(positions=self._scanner_short_positions[10:20])
         exchange_symbol_pairs_ibkr_short = [f"{l.exchange}:{l.symbol}" for l in self._ibkr_short_positions]
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
-        str_ratio_1 = self._create_ratio_string(part_no=1)
-        str_ratio_2 = self._create_ratio_string(part_no=2)
 
         watchlist_text = '\n'.join([str_ibkr_long_1]
                                  + [str_scanner_long_1]
@@ -140,9 +126,7 @@ class StockList:
                                  + [str_ibkr_short_2]
                                  + [str_scanner_short_2]
                                  + exchange_symbol_pairs_ibkr_short
-                                 + index_pairs
-                                 + [str_ratio_1]
-                                 + [str_ratio_2])
+                                 + index_pairs)
         self._util.create_text_file(text=watchlist_text, filename=self._analysis_file)
     
 class OrderList:
