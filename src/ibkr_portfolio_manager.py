@@ -17,7 +17,7 @@ from lib.yfinance_ticker import YfinanceTicker
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-ANALYSIS_FILE = 'Analysis_Prod.txt'
+ANALYSIS_FILE = 'Portfolio_Monitor.txt'
 CAPITAL_RESERVE = 0
 FLAG_LONG = True
 FLAG_SHORT = True
