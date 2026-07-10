@@ -21,7 +21,7 @@ class TV_Scanner:
     def always_true(self):
         return Column("exchange") != "INVALID"
 
-    def query_us(self, tickers_to_exclude: list[str], min_perf: float, market_cap: int,
+    def query_us(self, tickers_to_exclude: list[str], market_cap: int,
                            length: int, capital_per_stock: float, is_long: bool
                            ) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
@@ -29,7 +29,7 @@ class TV_Scanner:
         cond_subtype = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
-        cond_perf_ytd = Column('Perf.YTD') > min_perf
+        cond_perf_ytd = Column('Perf.YTD') > 0.0 if is_long else Column('Perf.YTD') < 0.0
         conditions = [
             cond_limit_size,
             cond_stocktype,
@@ -51,14 +51,10 @@ class TV_Scanner:
                 'type',
                 'subtype',
                 'Perf.YTD',
-                'Perf.W',
                 'market_cap_basic',
-                'MACD.macd|1W',
-                'MACD.signal|1W',
-                'Recommend.All|1M',
             ) \
             .where(*conditions) \
-            .order_by('Perf.W', ascending=False if is_long else True) \
+            .order_by('Perf.YTD', ascending=False if is_long else True) \
             .limit(length)
         
         _, scanner_data = q.get_scanner_data()
