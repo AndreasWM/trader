@@ -21,6 +21,7 @@ ANALYSIS_FILE = 'Portfolio_Monitor.txt'
 CAPITAL_RESERVE = 0
 FLAG_LONG = True
 FLAG_SHORT = True
+FLAG_REVERSE = True
 FLAG_ONLY_UPDATES = False
 LEVERAGE = 1.0
 MAX_NUMBER_OF_STOCKS = 20
@@ -46,6 +47,7 @@ class StockList:
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
         self._flag_long = FLAG_LONG
         self._flag_short = FLAG_SHORT
+        self._flag_reverse = FLAG_REVERSE
         self._flag_only_updates = FLAG_ONLY_UPDATES
         self._leverage: float = LEVERAGE
         self._max_number_of_stocks: int = MAX_NUMBER_OF_STOCKS
@@ -65,8 +67,8 @@ class StockList:
 
     def _set_stock_lists(self):
         self._ibkr_positions: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
-        self._ibkr_long_positions = [p for p in self._ibkr_positions if p.position > 0]
-        self._ibkr_short_positions = [p for p in self._ibkr_positions if p.position < 0]
+        self._ibkr_long_positions = [p for p in self._ibkr_positions if p.position > 0 and not self._flag_reverse or p.position < 0 and self._flag_reverse]
+        self._ibkr_short_positions = [p for p in self._ibkr_positions if p.position < 0 and not self._flag_reverse or p.position > 0 and self._flag_reverse]
         self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_do_not_trade_file())
 
         self._scanner_long_positions = self.query(is_long=True)
@@ -145,8 +147,9 @@ class OrderList:
         order = self._util.create_close_order(ibkr_pos)
         self.orders.append(order)
 
-    def invest(self, scanner_pos: ScannerPosition):
-        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, is_long=scanner_pos.is_long, capital_per_stock=self._capital_per_stock)
+    def invest(self, scanner_pos: ScannerPosition, flag_reverse: bool):
+        is_long = not scanner_pos.is_long if flag_reverse else scanner_pos.is_long
+        order = self._util.create_invest_order(symbol=scanner_pos.symbol, price=scanner_pos.price, is_long=is_long, capital_per_stock=self._capital_per_stock)
         self.orders.append(order)
     
     def update(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition):
@@ -185,7 +188,7 @@ class PortfolioManager:
         for symbol in self._stock_list._invest_symbols:
             scanner_pos = self._stock_list.invest_lookup.get(symbol)
             if scanner_pos is not None:
-                self._order_list.invest(scanner_pos=scanner_pos)
+                self._order_list.invest(scanner_pos=scanner_pos, flag_reverse=self._stock_list._flag_reverse)
 
     def create_update_orders(self):
         for symbol in self._stock_list._update_symbols:
