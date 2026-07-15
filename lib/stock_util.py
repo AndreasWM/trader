@@ -7,7 +7,7 @@ from typing import cast
 from pathlib import Path
 
 import pandas_market_calendars as mcal
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -102,33 +102,27 @@ class StockUtil:
             action=action
         )
     
-    def create_invest_order(self, symbol: str, price: float, is_long: bool, capital_per_stock: float) -> IBKROrder:
-        symbol=cast(str, symbol).replace('.', ' ')
-        qty = round(capital_per_stock / price)
-        action = "BUY" if is_long else "SELL"
-        print(f"Creating invest order for {symbol}: action={action}, qty={qty:.2f}, capital_per_stock={capital_per_stock:.2f}, price={price:.2f}")
-        return IBKROrder(
-            symbol=symbol,
-            qty=qty,
-            action=action
-        )
-    
-    def calc_qty(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition, capital_per_stock: float) -> int:
-        value = abs(ibkr_pos.position) * scanner_pos.price
-        capital_diff = capital_per_stock - value
-        qty = round(capital_diff / scanner_pos.price)
+    def calc_qty(self, ibkr_pos: IBKRPosition|None, scanner_pos: ScannerPosition, capital_per_stock: float) -> int:
+        position = ibkr_pos.position if ibkr_pos is not None else 0
+        quantity = round(capital_per_stock * scanner_pos.leverage / scanner_pos.price)
+        quantity_with_sign = quantity if scanner_pos.flag_is_long else -quantity
+        qty = quantity_with_sign - position
         return qty
 
-    def create_update_order(self, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition, capital_per_stock: float, qty: int) -> IBKROrder:
-        symbol=cast(str, ibkr_pos.symbol).replace('.', ' ')
-        action = "BUY" if ibkr_pos.position * qty > 0 else "SELL"
-        qty_abs = abs(qty)
-        print(f"Creating update order for {symbol}: action={action}, qty={qty_abs:.2f}, capital_per_stock={capital_per_stock:.2f}, price={scanner_pos.price:.2f}")
-        return IBKROrder(
-            symbol=symbol,
-            qty=qty_abs,
-            action=action
-        )
+    def create_order(self, ibkr_pos: IBKRPosition|None, scanner_pos: ScannerPosition, capital_per_stock: float) -> IBKROrder|None:
+        qty = self.calc_qty(ibkr_pos=ibkr_pos, scanner_pos=scanner_pos, capital_per_stock=capital_per_stock)
+        if qty == 0:
+            return None
+        else:
+            symbol=cast(str, scanner_pos.symbol).replace('.', ' ')
+            action = "BUY" if qty > 0 else "SELL"
+            qty_abs = abs(qty)
+            print(f"Creating update order for {symbol}: action={action}, capital_per_stock={capital_per_stock:.2f}, qty={qty_abs:.2f}, price={scanner_pos.price:.2f}")
+            return IBKROrder(
+                symbol=symbol,
+                qty=qty_abs,
+                action=action
+            )
     
     def execute_orders(self, trader: MarketOrder, orders: list[IBKROrder], skip_confirm: bool = False) -> bool:
         is_executed = False
