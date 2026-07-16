@@ -87,7 +87,8 @@ class StockUtil:
         else:
             positions = []
             for position in ibkr_positions:
-                if position.symbol not in ("WSO B"):
+                symbol=position.symbol.replace(' ', '.')
+                if symbol not in {"WSO.B"}:
                     positions.append(IBKRPosition(symbol=position.symbol.replace(' ', '.'), exchange=position.exchange, position=int(position.position)))
             return positions
         
