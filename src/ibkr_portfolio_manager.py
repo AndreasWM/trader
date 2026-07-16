@@ -24,12 +24,12 @@ class UpdateStatus(Enum):
 
 ANALYSIS_FILE = 'Portfolio_Monitor_Test.txt'
 CAPITAL_RESERVE = 0
-LEVERAGE_LONG_OUTPERFORM = 0.5
-LEVERAGE_SHORT_OUTPERFORM = 0.5
-LEVERAGE_LONG_UNDERPERFORM = 0.5
-LEVERAGE_SHORT_UNDERPERFORM = 0.5
+LEVERAGE_LONG_OUTPERFORM = 1.0
+LEVERAGE_SHORT_OUTPERFORM = 1.0
+LEVERAGE_LONG_UNDERPERFORM = 1.0
+LEVERAGE_SHORT_UNDERPERFORM = 1.0
 MIN_MARKET_CAP = 50_000_000_000
-NUMBER_OF_STOCKS = 20
+NUMBER_OF_STOCKS = 10
 
 class StockList:
     def __init__(self, ibkr: MarketOrder):
@@ -44,16 +44,19 @@ class StockList:
         self._set_symbol_lists()
         self._set_lookups()
         self._create_analysis_file()
+    
+    def _zero_if_none(self, leverage: float|None) -> float:
+        return 0 if leverage is None else leverage
 
     def _set_params(self):
         self._analysis_file = self._util.get_data_dir() + ANALYSIS_FILE
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
-        self._leverage_long_outperform: float = abs(LEVERAGE_LONG_OUTPERFORM)
-        self._leverage_short_outperform: float = abs(LEVERAGE_SHORT_OUTPERFORM)
-        self._leverage_long_underperform: float = abs(LEVERAGE_LONG_UNDERPERFORM)
-        self._leverage_short_underperform: float = abs(LEVERAGE_SHORT_UNDERPERFORM)
-        self._leverage = self._leverage_long_outperform + self._leverage_short_outperform + \
-                         self._leverage_long_underperform + self._leverage_short_underperform
+        self._leverage_long_outperform: float|None = LEVERAGE_LONG_OUTPERFORM
+        self._leverage_short_outperform: float|None = LEVERAGE_SHORT_OUTPERFORM
+        self._leverage_long_underperform: float|None = LEVERAGE_LONG_UNDERPERFORM
+        self._leverage_short_underperform: float|None = LEVERAGE_SHORT_UNDERPERFORM
+        self._leverage = self._zero_if_none(self._leverage_long_outperform) + self._zero_if_none(self._leverage_short_outperform) + \
+                         self._zero_if_none(self._leverage_long_underperform) + self._zero_if_none(self._leverage_short_underperform)
         self._min_market_cap = MIN_MARKET_CAP
         self._number_of_stocks: int = NUMBER_OF_STOCKS
     
@@ -61,13 +64,13 @@ class StockList:
         self._net_liquidation_euro = self._ibkr.get_net_liquidation()
         net_liquidation = self._net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
-        self.capital_per_stock = investment_capacity * self._leverage // 2 / self._number_of_stocks
+        self.capital_per_stock = investment_capacity * self._leverage // 4 / self._number_of_stocks
     
-    def query(self, leverage: float, flag_outperform: bool, flag_is_long: bool) -> list[ScannerPosition]:
-        if leverage > 0:
+    def query(self, leverage: float|None, flag_outperform: bool, flag_is_long: bool) -> list[ScannerPosition]:
+        if leverage is not None and leverage > 0:
             scanner_positions: list[ScannerPosition] \
             = self._sc.query_us(tickers_to_exclude=self._unwanted_tickers, market_cap=self._min_market_cap,
-                                length=self._number_of_stocks // 2, capital_per_stock=self.capital_per_stock,
+                                length=self._number_of_stocks, capital_per_stock=self.capital_per_stock,
                                 leverage=leverage, flag_outperform=flag_outperform, flag_is_long=flag_is_long)
         else:
             scanner_positions = []
