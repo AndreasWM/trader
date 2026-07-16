@@ -10,7 +10,6 @@ if project_root not in sys.path:
 from lib.ibkr_market_order import MarketOrder
 from lib.position import IBKRPosition, ScannerPosition
 from lib.stock_util import StockUtil
-from lib.state_store import StateStore
 from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
@@ -22,12 +21,13 @@ class UpdateStatus(Enum):
     def __str__(self):
         return self.value
 
-ANALYSIS_FILE = 'Portfolio_Monitor_Test.txt'
+PFM_SCANNER_FILE = 'PFM_Scanner_Test.txt'
+PFM_DEPOT_FILE = 'PFM_Depot_Test.txt'
 CAPITAL_RESERVE = 0
 LEVERAGE_LONG_OUTPERFORM = 1.0
 LEVERAGE_SHORT_OUTPERFORM = 1.0
-LEVERAGE_LONG_UNDERPERFORM = 1.0
-LEVERAGE_SHORT_UNDERPERFORM = 1.0
+LEVERAGE_LONG_UNDERPERFORM = 0.0
+LEVERAGE_SHORT_UNDERPERFORM = 0.0
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 10
 
@@ -43,13 +43,14 @@ class StockList:
         self._set_stock_lists()
         self._set_symbol_lists()
         self._set_lookups()
-        self._create_analysis_file()
+        self._write_pfm_scanner_file()
     
     def _zero_if_none(self, leverage: float|None) -> float:
         return 0 if leverage is None else leverage
 
     def _set_params(self):
-        self._analysis_file = self._util.get_data_dir() + ANALYSIS_FILE
+        self._pfm_scanner_file = self._util.get_data_dir() + PFM_SCANNER_FILE
+        self._pfm_depot_file = self._util.get_data_dir() + PFM_DEPOT_FILE
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
         self._leverage_long_outperform: float|None = LEVERAGE_LONG_OUTPERFORM
         self._leverage_short_outperform: float|None = LEVERAGE_SHORT_OUTPERFORM
@@ -96,25 +97,10 @@ class StockList:
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_positions}
         self.invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in self._scanner_positions}
     
-    def _ibkr_positions_to_string(self, positions: list[IBKRPosition]) -> str:
-        return "+".join(f"{p.exchange}:{p.symbol}*{abs(p.position)}" for p in positions)
-    
     def _scanner_positions_to_string(self, positions: list[ScannerPosition]) -> str:
         return "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in positions)
     
-    def _create_sum_for_ratio(self, scanner_positions: list[ScannerPosition], part_no: int) -> str:
-        last_index = part_no * 5
-        first_index = last_index - 5
-        str_sum = "+".join(f"{p.exchange}:{p.symbol}*{round(abs(self.capital_per_stock / p.price))}" for p in scanner_positions[first_index:last_index])
-        return str_sum
-    
-    def _create_ratio_string(self, part_no: int) -> str:
-        str_divisor = self._create_sum_for_ratio(scanner_positions=self._scanner_outperform_positions, part_no=part_no)
-        str_dividend = self._create_sum_for_ratio(scanner_positions=self._scanner_underperform_positions, part_no=part_no)
-        str_ratio = "(" + str_divisor+ ") / (" + str_dividend + ") * 1000"
-        return str_ratio
-    
-    def _create_analysis_file(self):
+    def _create_pfm_scanner_text(self):
         str_scanner_outperform_positions = self._scanner_positions_to_string(positions=self._scanner_outperform_positions)
         exchange_symbol_pairs_scanner_outperform = [f"{l.exchange}:{l.symbol}" for l in self._scanner_outperform_positions]
         str_scanner_outperform_short_positions = self._scanner_positions_to_string(positions=self._scanner_outperform_short_positions)
@@ -124,10 +110,8 @@ class StockList:
         str_scanner_underperform_positions = self._scanner_positions_to_string(positions=self._scanner_underperform_positions)
         exchange_symbol_pairs_scanner_underperform = [f"{l.exchange}:{l.symbol}" for l in self._scanner_underperform_positions]
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
-        # str_ratio_1 = self._create_ratio_string(part_no=1)
-        # str_ratio_2 = self._create_ratio_string(part_no=2)
 
-        watchlist_text = '\n'.join([str_scanner_outperform_positions]
+        self._watchlist_text = '\n'.join([str_scanner_outperform_positions]
                                  + exchange_symbol_pairs_scanner_outperform
                                  + [str_scanner_outperform_short_positions]
                                  + exchange_symbol_pairs_scanner_short_outperform
@@ -136,7 +120,13 @@ class StockList:
                                  + [str_scanner_underperform_positions]
                                  + exchange_symbol_pairs_scanner_underperform
                                  + index_pairs)
-        self._util.create_text_file(text=watchlist_text, filename=self._analysis_file)
+        
+    def _write_pfm_scanner_file(self):
+        self._create_pfm_scanner_text()
+        self._util.create_text_file(text=self._watchlist_text, filename=self._pfm_scanner_file)
+    
+    def _write_pfm_depot_file(self):
+        self._util.create_text_file(text=self._watchlist_text, filename=self._pfm_depot_file)
     
 class OrderList:
     def __init__(self, capital_per_stock: float):
@@ -183,9 +173,7 @@ class PortfolioManager:
     def invest(self):
         is_executed = self._util.execute_orders(trader=self._ibkr, orders=self._order_list.orders, skip_confirm=self._skip_confirm)
         if is_executed:
-            state = StateStore.load()
-            state.last_update = datetime.now()
-            state.save()
+            self._stock_list._write_pfm_depot_file()
     
     def disconnect(self):
         self._ibkr.disconnect()
