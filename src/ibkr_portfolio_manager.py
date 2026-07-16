@@ -21,8 +21,8 @@ class UpdateStatus(Enum):
     def __str__(self):
         return self.value
 
-PFM_SCANNER_FILE = 'PFM_Scanner_Test.txt'
-PFM_DEPOT_FILE = 'PFM_Depot_Test.txt'
+PFM_SCANNER_FILE = 'PFM_Scanner.txt'
+PFM_DEPOT_FILE = 'PFM_Depot.txt'
 CAPITAL_RESERVE = 0
 LEVERAGE_LONG_OUTPERFORM = 1.0
 LEVERAGE_SHORT_OUTPERFORM = 1.0
