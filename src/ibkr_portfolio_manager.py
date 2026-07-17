@@ -13,14 +13,6 @@ from lib.stock_util import StockUtil
 from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
-class UpdateStatus(Enum):
-    CLOSE_ALL = "CLOSE_ALL"
-    KEEP = "KEEP"
-    UPDATE = "UPDATE"
-
-    def __str__(self):
-        return self.value
-
 PFM_SCANNER_FILE = 'PFM_Scanner.txt'
 PFM_DEPOT_FILE = 'PFM_Depot.txt'
 CAPITAL_RESERVE = 0
@@ -65,7 +57,7 @@ class StockList:
         self._net_liquidation_euro = self._ibkr.get_net_liquidation()
         net_liquidation = self._net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
-        self.capital_per_stock = investment_capacity * self._leverage // 4 / self._number_of_stocks
+        self.capital_per_stock = investment_capacity * self._leverage // 2 / self._number_of_stocks
     
     def query(self, leverage: float|None, flag_outperform: bool, flag_is_long: bool) -> list[ScannerPosition]:
         if leverage is not None and leverage > 0:

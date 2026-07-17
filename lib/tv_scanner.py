@@ -50,8 +50,6 @@ class TV_Scanner:
             .select(
                 'name',
                 'close',
-                'premarket_change',
-                'postmarket_change',
                 'exchange',
                 'type',
                 'subtype',
