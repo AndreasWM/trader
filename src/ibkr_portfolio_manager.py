@@ -13,13 +13,11 @@ from lib.stock_util import StockUtil
 from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
-PFM_SCANNER_FILE = 'PFM_Scanner_Test.txt'
-PFM_DEPOT_FILE = 'PFM_Depot_Test.txt'
+PFM_SCANNER_FILE = 'PFM_Scanner.txt'
+PFM_DEPOT_FILE = 'PFM_Depot.txt'
 CAPITAL_RESERVE = 0
-LEVERAGE_LONG_OUTPERFORM = 1.0
-LEVERAGE_SHORT_OUTPERFORM = 1.0
-LEVERAGE_LONG_UNDERPERFORM = 0.0
-LEVERAGE_SHORT_UNDERPERFORM = 0.0
+LEVERAGE_LONG = 1.0
+LEVERAGE_SHORT = 1.0
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 10
 
@@ -44,12 +42,9 @@ class StockList:
         self._pfm_scanner_file = self._util.get_data_dir() + PFM_SCANNER_FILE
         self._pfm_depot_file = self._util.get_data_dir() + PFM_DEPOT_FILE
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
-        self._leverage_long_outperform: float|None = LEVERAGE_LONG_OUTPERFORM
-        self._leverage_short_outperform: float|None = LEVERAGE_SHORT_OUTPERFORM
-        self._leverage_long_underperform: float|None = LEVERAGE_LONG_UNDERPERFORM
-        self._leverage_short_underperform: float|None = LEVERAGE_SHORT_UNDERPERFORM
-        self._leverage = self._zero_if_none(self._leverage_long_outperform) + self._zero_if_none(self._leverage_short_outperform) + \
-                         self._zero_if_none(self._leverage_long_underperform) + self._zero_if_none(self._leverage_short_underperform)
+        self._leverage_long: float|None = LEVERAGE_LONG
+        self._leverage_short: float|None = LEVERAGE_SHORT
+        self._leverage = self._zero_if_none(self._leverage_long) + self._zero_if_none(self._leverage_short)
         self._min_market_cap = MIN_MARKET_CAP
         self._number_of_stocks: int = NUMBER_OF_STOCKS
     
@@ -73,12 +68,9 @@ class StockList:
         self._ibkr_positions: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
         self._unwanted_tickers = self._util.read_symbols(self._util.get_latest_do_not_trade_file())
 
-        self._scanner_outperform_positions = self.query(leverage=self._leverage_long_outperform, flag_outperform=True, flag_is_long=True)
-        self._scanner_outperform_short_positions = self.query(leverage=self._leverage_short_outperform, flag_outperform=True, flag_is_long=False)
-        self._scanner_underperform_positions = self.query(leverage=self._leverage_short_underperform, flag_outperform=False, flag_is_long=False)
-        self._scanner_underperform_long_positions = self.query(leverage=self._leverage_long_underperform, flag_outperform=False, flag_is_long=True)
-        self._scanner_positions = self._scanner_outperform_positions + self._scanner_outperform_short_positions + \
-                                  self._scanner_underperform_positions + self._scanner_underperform_long_positions
+        self._scanner_outperform_positions = self.query(leverage=self._leverage_long, flag_outperform=True, flag_is_long=True)
+        self._scanner_outperform_short_positions = self.query(leverage=self._leverage_short, flag_outperform=True, flag_is_long=False)
+        self._scanner_positions = self._scanner_outperform_positions + self._scanner_outperform_short_positions
     
     def _set_symbol_lists(self):
         stock_symbols = [p.symbol for p in self._ibkr_positions]
@@ -97,20 +89,12 @@ class StockList:
         exchange_symbol_pairs_scanner_outperform = [f"{l.exchange}:{l.symbol}" for l in self._scanner_outperform_positions]
         str_scanner_outperform_short_positions = self._scanner_positions_to_string(positions=self._scanner_outperform_short_positions)
         exchange_symbol_pairs_scanner_short_outperform = [f"{l.exchange}:{l.symbol}" for l in self._scanner_outperform_short_positions]
-        str_scanner_underperform_long_positions = self._scanner_positions_to_string(positions=self._scanner_underperform_long_positions)
-        exchange_symbol_pairs_scanner_long_underperform = [f"{l.exchange}:{l.symbol}" for l in self._scanner_underperform_long_positions]
-        str_scanner_underperform_positions = self._scanner_positions_to_string(positions=self._scanner_underperform_positions)
-        exchange_symbol_pairs_scanner_underperform = [f"{l.exchange}:{l.symbol}" for l in self._scanner_underperform_positions]
         index_pairs = ["FX:NAS100", "TVC:SOX", "FX:SPX500"]
 
         self._watchlist_text = '\n'.join([str_scanner_outperform_positions]
                                  + exchange_symbol_pairs_scanner_outperform
                                  + [str_scanner_outperform_short_positions]
                                  + exchange_symbol_pairs_scanner_short_outperform
-                                 + [str_scanner_underperform_long_positions]
-                                 + exchange_symbol_pairs_scanner_long_underperform
-                                 + [str_scanner_underperform_positions]
-                                 + exchange_symbol_pairs_scanner_underperform
                                  + index_pairs)
         
     def _write_pfm_scanner_file(self):
