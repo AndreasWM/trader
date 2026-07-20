@@ -13,8 +13,8 @@ from lib.stock_util import StockUtil
 from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
-PFM_SCANNER_FILE = 'PFM_Scanner.txt'
-PFM_DEPOT_FILE = 'PFM_Depot.txt'
+PFM_SCANNER_FILE = 'PFM_Scanner_Test.txt'
+PFM_DEPOT_FILE = 'PFM_Depot_Test.txt'
 CAPITAL_RESERVE = 0
 LEVERAGE_LONG_OUTPERFORM = 1.0
 LEVERAGE_SHORT_OUTPERFORM = 1.0
@@ -64,7 +64,7 @@ class StockList:
             scanner_positions: list[ScannerPosition] \
             = self._sc.query_us(tickers_to_exclude=self._unwanted_tickers, market_cap=self._min_market_cap,
                                 length=self._number_of_stocks, capital_per_stock=self.capital_per_stock,
-                                leverage=leverage, flag_outperform=flag_outperform, flag_is_long=flag_is_long)
+                                leverage=leverage, flag_is_long=flag_is_long)
         else:
             scanner_positions = []
         return scanner_positions

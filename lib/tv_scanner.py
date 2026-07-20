@@ -17,31 +17,46 @@ class TV_Scanner:
         return Column("exchange") != "INVALID"
 
     def query_us(self, tickers_to_exclude: list[str], market_cap: int,
-                           length: int, capital_per_stock: float, leverage: float, flag_outperform: bool, flag_is_long: bool
+                           length: int, capital_per_stock: float, leverage: float, flag_is_long: bool
                            ) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type').isin(['stock','dr'])
         cond_subtype = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
-        cond_perf_ytd = Column('Perf.YTD') > 0.0 if flag_outperform else Column('Perf.YTD') < 0.0
-        cond_tech_rating = self.always_true()
-        if flag_outperform and flag_is_long:
-            cond_tech_rating = Column('Recommend.All') >= 0.5
-        elif flag_outperform and not flag_is_long:
-            cond_tech_rating = Column('Recommend.All') <= -0.1
-        elif not flag_outperform and not flag_is_long:
-            cond_tech_rating = Column('Recommend.All') <= -0.5
-        elif not flag_outperform and flag_is_long:
-            cond_tech_rating = Column('Recommend.All') >= 0.5
+
+        cond_ichimoku1_240 = self.always_true()
+        cond_ichimoku1_1D = self.always_true()
+        cond_ichimoku1_1W = self.always_true()
+        cond_ichimoku2_240 = self.always_true()
+        cond_ichimoku2_1D = self.always_true()
+        cond_ichimoku2_1W = self.always_true()
+        if flag_is_long:
+            cond_ichimoku1_240 = Column('close') > Column('Ichimoku.Lead1|240')
+            cond_ichimoku1_1D = Column('close') > Column('Ichimoku.Lead1')
+            cond_ichimoku1_1W = Column('close') > Column('Ichimoku.Lead1|1W')
+            cond_ichimoku2_240 = Column('close') > Column('Ichimoku.Lead2|240')
+            cond_ichimoku2_1D = Column('close') > Column('Ichimoku.Lead2')
+            cond_ichimoku2_1W = Column('close') > Column('Ichimoku.Lead2|1W')
+        else:
+            cond_ichimoku1_240 = Column('close') < Column('Ichimoku.Lead1|240')
+            cond_ichimoku1_1D = Column('close') < Column('Ichimoku.Lead1')
+            cond_ichimoku1_1W = Column('close') < Column('Ichimoku.Lead1|1W')
+            cond_ichimoku2_240 = Column('close') < Column('Ichimoku.Lead2|240')
+            cond_ichimoku2_1D = Column('close') < Column('Ichimoku.Lead2')
+            cond_ichimoku2_1W = Column('close') < Column('Ichimoku.Lead2|1W')
         conditions = [
             cond_limit_size,
             cond_stocktype,
             cond_subtype,
             cond_exchange,
             cond_market_cap,
-            cond_perf_ytd,
-            cond_tech_rating
+            cond_ichimoku1_240,
+            cond_ichimoku1_1D,
+            cond_ichimoku1_1W,
+            cond_ichimoku2_240,
+            cond_ichimoku2_1D,
+            cond_ichimoku2_1W,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -54,11 +69,16 @@ class TV_Scanner:
                 'type',
                 'subtype',
                 'Perf.YTD',
-                'Recommend.All',
+                'Ichimoku.Lead1|240',
+                'Ichimoku.Lead1',
+                'Ichimoku.Lead1|1W',
+                'Ichimoku.Lead2|240',
+                'Ichimoku.Lead2',
+                'Ichimoku.Lead2|1W',
                 'market_cap_basic',
             ) \
             .where(*conditions) \
-            .order_by('Perf.YTD', ascending=False if flag_outperform else True) \
+            .order_by('Perf.YTD', ascending=False) \
             .limit(length)
         
         _, scanner_data = q.get_scanner_data()
