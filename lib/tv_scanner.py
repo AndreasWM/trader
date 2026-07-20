@@ -27,24 +27,18 @@ class TV_Scanner:
 
         cond_ichimoku1_240 = self.always_true()
         cond_ichimoku1_1D = self.always_true()
-        cond_ichimoku1_1W = self.always_true()
         cond_ichimoku2_240 = self.always_true()
         cond_ichimoku2_1D = self.always_true()
-        cond_ichimoku2_1W = self.always_true()
         if flag_is_long:
             cond_ichimoku1_240 = Column('close') > Column('Ichimoku.Lead1|240')
             cond_ichimoku1_1D = Column('close') > Column('Ichimoku.Lead1')
-            cond_ichimoku1_1W = Column('close') > Column('Ichimoku.Lead1|1W')
             cond_ichimoku2_240 = Column('close') > Column('Ichimoku.Lead2|240')
             cond_ichimoku2_1D = Column('close') > Column('Ichimoku.Lead2')
-            cond_ichimoku2_1W = Column('close') > Column('Ichimoku.Lead2|1W')
         else:
             cond_ichimoku1_240 = Column('close') < Column('Ichimoku.Lead1|240')
             cond_ichimoku1_1D = Column('close') < Column('Ichimoku.Lead1')
-            cond_ichimoku1_1W = Column('close') < Column('Ichimoku.Lead1|1W')
             cond_ichimoku2_240 = Column('close') < Column('Ichimoku.Lead2|240')
             cond_ichimoku2_1D = Column('close') < Column('Ichimoku.Lead2')
-            cond_ichimoku2_1W = Column('close') < Column('Ichimoku.Lead2|1W')
         conditions = [
             cond_limit_size,
             cond_stocktype,
@@ -53,10 +47,8 @@ class TV_Scanner:
             cond_market_cap,
             cond_ichimoku1_240,
             cond_ichimoku1_1D,
-            cond_ichimoku1_1W,
             cond_ichimoku2_240,
             cond_ichimoku2_1D,
-            cond_ichimoku2_1W,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
