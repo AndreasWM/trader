@@ -25,30 +25,16 @@ class TV_Scanner:
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
 
-        cond_ichimoku1_240 = self.always_true()
-        cond_ichimoku1_1D = self.always_true()
-        cond_ichimoku2_240 = self.always_true()
-        cond_ichimoku2_1D = self.always_true()
-        if flag_is_long:
-            cond_ichimoku1_240 = Column('close') > Column('Ichimoku.Lead1|240')
-            cond_ichimoku1_1D = Column('close') > Column('Ichimoku.Lead1')
-            cond_ichimoku2_240 = Column('close') > Column('Ichimoku.Lead2|240')
-            cond_ichimoku2_1D = Column('close') > Column('Ichimoku.Lead2')
-        else:
-            cond_ichimoku1_240 = Column('close') < Column('Ichimoku.Lead1|240')
-            cond_ichimoku1_1D = Column('close') < Column('Ichimoku.Lead1')
-            cond_ichimoku2_240 = Column('close') < Column('Ichimoku.Lead2|240')
-            cond_ichimoku2_1D = Column('close') < Column('Ichimoku.Lead2')
+        cond_ichimoku1 = Column('close') > Column('Ichimoku.Lead1')
+        cond_ichimoku2 = Column('close') > Column('Ichimoku.Lead2')
         conditions = [
             cond_limit_size,
             cond_stocktype,
             cond_subtype,
             cond_exchange,
             cond_market_cap,
-            cond_ichimoku1_240,
-            cond_ichimoku1_1D,
-            cond_ichimoku2_240,
-            cond_ichimoku2_1D,
+            cond_ichimoku1,
+            cond_ichimoku2,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -61,12 +47,8 @@ class TV_Scanner:
                 'type',
                 'subtype',
                 'Perf.YTD',
-                'Ichimoku.Lead1|240',
                 'Ichimoku.Lead1',
-                'Ichimoku.Lead1|1W',
-                'Ichimoku.Lead2|240',
                 'Ichimoku.Lead2',
-                'Ichimoku.Lead2|1W',
                 'market_cap_basic',
             ) \
             .where(*conditions) \

@@ -17,9 +17,9 @@ PFM_SCANNER_FILE = 'PFM_Scanner.txt'
 PFM_DEPOT_FILE = 'PFM_Depot.txt'
 CAPITAL_RESERVE = 0
 LEVERAGE_LONG = 1.0
-LEVERAGE_SHORT = 1.0
+LEVERAGE_SHORT = 0.0
 MIN_MARKET_CAP = 50_000_000_000
-NUMBER_OF_STOCKS = 10
+NUMBER_OF_STOCKS = 20
 
 class StockList:
     def __init__(self, ibkr: MarketOrder):
@@ -52,7 +52,7 @@ class StockList:
         self._net_liquidation_euro = self._ibkr.get_net_liquidation()
         net_liquidation = self._net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
-        self.capital_per_stock = investment_capacity * self._leverage // 2 / self._number_of_stocks
+        self.capital_per_stock = investment_capacity * self._leverage / self._number_of_stocks
     
     def query(self, leverage: float|None, flag_outperform: bool, flag_is_long: bool) -> list[ScannerPosition]:
         if leverage is not None and leverage > 0:
@@ -75,7 +75,7 @@ class StockList:
     def _set_symbol_lists(self):
         stock_symbols = [p.symbol for p in self._ibkr_positions]
         self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_positions]]
-        self._invest_symbols = [p.symbol for p in self._scanner_positions]
+        self._invest_symbols = [p.symbol for p in self._scanner_positions if p.symbol not in [symbol for symbol in stock_symbols]]
 
     def _set_lookups(self):
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_positions}
