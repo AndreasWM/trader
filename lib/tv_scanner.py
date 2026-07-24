@@ -17,24 +17,18 @@ class TV_Scanner:
         return Column("exchange") != "INVALID"
 
     def query_us(self, tickers_to_exclude: list[str], market_cap: int,
-                           length: int, capital_per_stock: float, leverage: float, flag_is_long: bool
-                           ) -> list[ScannerPosition]:
+                           length: int, capital_per_stock: float, leverage: float) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type').isin(['stock','dr'])
         cond_subtype = Column('subtype') != 'preferred'
         cond_exchange = Column('exchange').isin(['NASDAQ', 'NYSE'])
         cond_market_cap = Column('market_cap_basic') > market_cap
-
-        cond_ichimoku1 = Column('close') > Column('Ichimoku.Lead1')
-        cond_ichimoku2 = Column('close') > Column('Ichimoku.Lead2')
         conditions = [
             cond_limit_size,
             cond_stocktype,
             cond_subtype,
             cond_exchange,
             cond_market_cap,
-            cond_ichimoku1,
-            cond_ichimoku2,
         ]
         if tickers_to_exclude:
             conditions.append(Column('name').not_in(tickers_to_exclude))
@@ -52,7 +46,7 @@ class TV_Scanner:
                 'market_cap_basic',
             ) \
             .where(*conditions) \
-            .order_by('Perf.YTD', ascending=False) \
+            .order_by('Perf.Y', ascending=False) \
             .limit(length)
         
         _, scanner_data = q.get_scanner_data()
@@ -61,7 +55,6 @@ class TV_Scanner:
         scanner_data = scanner_data.rename(columns={
             "name": "symbol",
             "close": "price",
-            "Recommend.All": "tech_rating",
         })
         
         # print(",".join(scanner_data.columns))
@@ -69,9 +62,15 @@ class TV_Scanner:
         for _, row in scanner_data.iterrows():
             # print(",".join(str(v) for v in row.values))
             symbol = row['symbol']
-            price = self.safe_float(row['price'])
             exchange = row['exchange']
-            pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage, flag_is_long=flag_is_long)
-            pos_list.append(pos)
+            price = self.safe_float(row['price'])
+            lead1 = self.safe_float(row['Ichimoku.Lead1'])
+            lead2 = self.safe_float(row['Ichimoku.Lead2'])
+            if price > max(lead1, lead2):
+                pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage, flag_is_long=True)
+                pos_list.append(pos)
+            elif price < min(lead1, lead2):
+                pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage, flag_is_long=False)
+                pos_list.append(pos)
 
         return pos_list

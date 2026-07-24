@@ -90,6 +90,7 @@ class StockUtil:
                 symbol=position.symbol.replace(' ', '.')
                 if symbol not in {"WSO.B"}:
                     positions.append(IBKRPosition(symbol=position.symbol.replace(' ', '.'), exchange=position.exchange, position=int(position.position)))
+            positions.sort()
             return positions
         
     def create_close_order(self, p: IBKRPosition) -> IBKROrder:
