@@ -16,6 +16,7 @@ IBKR_LONG = 'IBKR_Long.txt'
 IBKR_SHORT = 'IBKR_Short.txt'
 CAPITAL_RESERVE = 0
 LEVERAGE = 1.0
+LEVERAGE_ADAPT = False
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 40
 
@@ -41,6 +42,7 @@ class StockList:
         self._ibkr_short = self._util.get_data_dir() + IBKR_SHORT
         self._capital_reserve = CAPITAL_RESERVE * self._price_eurusd
         self._leverage: float = LEVERAGE
+        self._leverage_adapt: bool = LEVERAGE_ADAPT
         self._min_market_cap = MIN_MARKET_CAP
         self._number_of_stocks: int = NUMBER_OF_STOCKS
     
@@ -48,7 +50,7 @@ class StockList:
         self._net_liquidation_euro = self._ibkr.get_net_liquidation()
         net_liquidation = self._net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
-        self.capital_per_stock = investment_capacity * self._leverage // 2 / self._number_of_stocks
+        self.capital_per_stock = investment_capacity * self._leverage * 2 / self._number_of_stocks
     
     def _set_stock_lists(self):
         self._ibkr_positions: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
@@ -61,7 +63,8 @@ class StockList:
     def _set_symbol_lists(self):
         stock_symbols = [p.symbol for p in self._ibkr_positions]
         self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_positions]]
-        self._invest_symbols = [p.symbol for p in self._scanner_positions if p.symbol not in [symbol for symbol in stock_symbols]]
+        self._invest_symbols = [p.symbol for p in self._scanner_positions
+                                if self._leverage_adapt or p.symbol not in [symbol for symbol in stock_symbols]]
 
     def _set_lookups(self):
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_positions}
