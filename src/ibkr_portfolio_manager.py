@@ -17,7 +17,7 @@ IBKR_SHORT = 'IBKR_Short.txt'
 CAPITAL_RESERVE = 0
 LEVERAGE = 1.0
 MIN_MARKET_CAP = 50_000_000_000
-NUMBER_OF_STOCKS = 50
+NUMBER_OF_STOCKS = 40
 
 class StockList:
     def __init__(self, ibkr: MarketOrder):
