@@ -15,7 +15,7 @@ from lib.yfinance_ticker import YfinanceTicker
 IBKR_LONG = 'IBKR_Long.txt'
 IBKR_SHORT = 'IBKR_Short.txt'
 CAPITAL_RESERVE = 0
-LEVERAGE = 1.0
+LEVERAGE = 2.0
 LEVERAGE_ADAPT = False
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 40
@@ -50,7 +50,7 @@ class StockList:
         self._net_liquidation_euro = self._ibkr.get_net_liquidation()
         net_liquidation = self._net_liquidation_euro * self._price_eurusd
         investment_capacity=net_liquidation - self._capital_reserve
-        self.capital_per_stock = investment_capacity * self._leverage * 2 / self._number_of_stocks
+        self.capital_per_stock = investment_capacity * self._leverage / self._number_of_stocks
     
     def _set_stock_lists(self):
         self._ibkr_positions: list[IBKRPosition] = self._util.ibkr_positions(trader=self._ibkr)
