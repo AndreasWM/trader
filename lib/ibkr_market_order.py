@@ -353,6 +353,16 @@ class MarketOrder(EClient, EWrapper):
         if self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
+    def wait_until_sent(self, timeout: Optional[float] = None):
+        """Wartet nur, bis alle Orders aus der Queue an IB übertragen wurden.
+        Kein Warten auf Fills, kein automatisches Trennen der Verbindung."""
+        start = time.time()
+        while self._order_queue or self._current_order_id is not None:
+            time.sleep(0.1)
+            if timeout is not None and (time.time() - start) > timeout:
+                print("[IB][WARN] Timeout beim Übertragen der Orders.")
+                break
+
     def execute(self, orders: List[IBKROrder]):
         for o in orders:
             # Erst alle bestehenden Orders für dieses Symbol canceln

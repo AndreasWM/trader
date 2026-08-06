@@ -32,16 +32,19 @@ class IBKRPosition(Position):
         return self.__str__()
     
 class ScannerPosition(Position):
-    def __init__(self, symbol: str, leverage: float, flag_is_long: bool, price: float = 0.0, exchange: str = ""):
+    def __init__(self, symbol: str, leverage: float, flag_is_long: bool, price: float = 0.0, exchange: str = "",
+                 lead1: float = 0.0, lead2: float = 0.0):
         super().__init__(symbol)
         self.leverage = leverage
         self.flag_is_long = flag_is_long
         self.price = price
         self.exchange = exchange
+        self.lead1 = lead1
+        self.lead2 = lead2
     
     def __str__(self):
         return f"""ScannerPosition(symbol={self.symbol}, leverage={self.leverage}, flag_is_long={self.flag_is_long},
-                price={self.price}, exchange={self.exchange})"""
+                price={self.price}, exchange={self.exchange}, lead1={self.lead1}, lead2={self.lead2})"""
     
     def __repr__(self):
         return self.__str__()        

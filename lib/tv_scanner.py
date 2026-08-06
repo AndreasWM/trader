@@ -1,7 +1,8 @@
 import os
 import sys
+import pandas as pd
 from tradingview_screener.query import Query
-from tradingview_screener.column import Column
+from tradingview_screener.column import Column, col
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if project_root not in sys.path:
@@ -69,12 +70,77 @@ class TV_Scanner:
                 lead1 = self.safe_float(row['Ichimoku.Lead1'])
                 lead2 = self.safe_float(row['Ichimoku.Lead2'])
                 if price > max(lead1, lead2):
-                    pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage, flag_is_long=True)
+                    pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
+                                          flag_is_long=True, lead1=lead1, lead2=lead2)
                     pos_list.append(pos)
                     # print(",".join(str(v) for v in row.values))
                 elif price < min(lead1, lead2):
-                    pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage, flag_is_long=False)
+                    pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
+                                          flag_is_long=False, lead1=lead1, lead2=lead2)
                     pos_list.append(pos)
                     # print(",".join(str(v) for v in row.values))
 
         return pos_list
+
+    def scan_list(self, stock_list: list[str]) -> pd.DataFrame:
+        print(f"📡 Scanne {len(stock_list)} Aktien bei TradingView...")
+        
+        if stock_list is None:
+            print("⚠️  Quell-Aktienliste ist leer")
+            return pd.DataFrame()
+        else:
+            all_data = []
+            batch_size = 50
+            
+            for i in range(0, len(stock_list), batch_size):
+                batch = stock_list[i:i + batch_size]
+                
+                conditions = [
+                    col('name').isin(batch),
+                ]
+                q = Query() \
+                    .select(
+                        'name',
+                        'exchange',
+                        'market_cap_basic',
+                        'close',
+                        'premarket_close',
+                        'high|1',
+                        'low|1',
+                        'Perf.YTD',
+                        'Ichimoku.Lead1',
+                        'Ichimoku.Lead2',
+                    ) \
+                    .where(*conditions)
+                
+                try:
+                    _, scanner_data = q.get_scanner_data()
+                except (TypeError, AttributeError):
+                    print(f"  ⚠️  Fehler bei Batch {i//batch_size + 1}")
+                    continue
+                
+                if scanner_data is not None and not scanner_data.empty:
+                    all_data.append(scanner_data)
+                    print(f"  ✓ Batch {i//batch_size + 1}: {len(scanner_data)} Aktien")
+        
+            if not all_data:
+                print("⚠️  Keine Daten gefunden")
+                return pd.DataFrame()
+            else:
+                scanner_data = pd.concat(all_data, ignore_index=True)
+                
+                scanner_data = scanner_data.drop(columns=['ticker'], errors='ignore')
+                scanner_data = scanner_data.rename(columns={
+                    "name": "symbol",
+                    "market_cap_basic": "market_cap",
+                    "close": "price",
+                    "premarket_close": "premarket_price",
+                    "high|1": "high_1",
+                    "low|1": "low_1",
+                    "Perf.YTD": "perf_ytd",
+                    "Ichimoku.Lead1": "lead1",
+                    "Ichimoku.Lead2": "lead2",
+                })
+                
+                print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
+                return scanner_data
