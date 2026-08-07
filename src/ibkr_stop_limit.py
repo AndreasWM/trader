@@ -138,13 +138,13 @@ if __name__ == "__main__":
     limit_trader = LimitOrder()
     util = StockUtil()
     
-    # limit_trader.cancel_all_orders()
-    # limit_trader.sleep(0.3)
+    limit_trader.cancel_all_orders()
+    limit_trader.sleep(0.3)
 
-    # hedge(limit_trader=limit_trader)
+    hedge(limit_trader=limit_trader)
 
-    # if LEVERAGE > 0:
-    #     buy(limit_trader=limit_trader)
+    if LEVERAGE > 0:
+        buy(limit_trader=limit_trader)
 
     limit_trader.wait_until_sent(timeout=120)
     limit_trader.close()
