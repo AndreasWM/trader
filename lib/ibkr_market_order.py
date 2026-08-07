@@ -32,6 +32,20 @@ class PositionRecord:
     position: float
     avgCost: float
 
+@dataclass
+class OpenOrderInfo:
+    orderId: int
+    contract: Contract
+    order: Order
+    status: str
+
+@dataclass
+class StalledStopLimitOrder:
+    orderId: int
+    symbol: str
+    action: str  # "BUY" oder "SELL"
+    quantity: int
+
 class MarketOrder(EClient, EWrapper):
     def __init__(self, auto_close: bool = False, idle_shutdown_secs: float = 2.0):
         EClient.__init__(self, self)
@@ -98,10 +112,10 @@ class MarketOrder(EClient, EWrapper):
     def error(
         self,
         reqId: int,
+        errorTime: int,
         errorCode: int,
         errorString: str,
         advancedOrderRejectJson: str = "",
-        errorTime: str = "",
     ):
 
         """IB Fehler-Callback – unterscheidet Statusmeldungen von echten Fehlern."""
@@ -185,7 +199,7 @@ class MarketOrder(EClient, EWrapper):
     def accountSummaryEnd(self, reqId: int):
         self._capital_event.set()
 
-    def position(self, account: str, contract: Contract, position: float, avgCost: float):
+    def position(self, account: str, contract: Contract, position: Decimal, avgCost: float):
         """Callback für Positionsdaten – filtert auf Aktien"""
         if contract.secType == "STK" and position != 0:
             rec = PositionRecord(
@@ -194,7 +208,7 @@ class MarketOrder(EClient, EWrapper):
                 conId=contract.conId,
                 exchange=contract.primaryExchange or contract.exchange or "",
                 currency=contract.currency or "",
-                position=position,
+                position=float(position),
                 avgCost=avgCost,
             )
             self._positions.append(rec)
@@ -305,15 +319,10 @@ class MarketOrder(EClient, EWrapper):
         o = Order()
         o.action = action.upper()           # BUY | SELL
         o.orderType = "MKT"                 # Market Order
-        o.totalQuantity = int(qty)
+        o.totalQuantity = Decimal(qty)
         o.tif = "GTC"                       # WICHTIG: Adaptive ist in Live-Accounts i.d.R. nur DAY
         o.algoStrategy = "Adaptive"
-        o.algoParams = [TagValue("adaptivePriority", priority)]
-
-        # Deprecated Flags explizit leeren (verhindert 10268/Legacy-Felder)
-        # (werden von IB historisch teils implizit gesetzt)
-        o.eTradeOnly = ""
-        o.firmQuoteOnly = ""
+        o.algoParams = [TagValue("adaptivePriority", priority)]  # type: ignore[assignment]
 
         return o
 
@@ -452,13 +461,22 @@ class LimitOrder(MarketOrder):
     def __init__(self, auto_close: bool = False, idle_shutdown_secs: float = 2.0, on_filled: Optional[Callable] = None):
         self._on_filled_hook = on_filled
         
+        # Erweitertes Order-Tracking: Order-Objekt + Status (für Stop-Limit-Sternchen-Erkennung)
+        self._open_orders_info: dict[int, "OpenOrderInfo"] = {}
+        
         # Jetzt erst Parent initialisieren (baut Verbindung auf)
         super().__init__(auto_close=auto_close, idle_shutdown_secs=idle_shutdown_secs)
 
     def openOrder(self, orderId: OrderId, contract: Contract, order: Order, orderState):
-        """Überschreibt Parent, um offene Orders zu tracken"""
-        super().openOrder(orderId, contract, order, orderState)
-        self._open_orders[orderId] = contract
+            """Überschreibt Parent, um offene Orders zu tracken"""
+            super().openOrder(orderId, contract, order, orderState)
+            self._open_orders[orderId] = contract
+            self._open_orders_info[orderId] = OpenOrderInfo(
+                orderId=orderId,
+                contract=contract,
+                order=order,
+                status=orderState.status,
+            )
 
     def openOrderEnd(self):
         """Callback signalisiert Ende der offenen Orders"""
@@ -573,3 +591,39 @@ class LimitOrder(MarketOrder):
     def request_all_open_orders(self):
         """Fordert alle offenen Orders (aller Clients) bei IB an."""
         self.reqAllOpenOrders()
+
+    def get_stalled_stop_limit_orders(self, timeout: float = 5.0) -> List[StalledStopLimitOrder]:
+            """
+            Liefert Order-ID, Symbol und Orderart (BUY/SELL) aller Stop-Limit-Orders
+            (STP LMT), bei denen der Stop bereits ausgelöst wurde, das Limit aber
+            nicht (mehr) marktfähig ist – also genau der Fall, den die TWS mit
+            einem Sternchen (*) markiert.
+
+            Erkennung ohne Marktdaten: Eine STP LMT-Order steht solange auf
+            "PreSubmitted", bis der Stop-Preis erreicht wird. Danach wechselt sie
+            auf "Submitted" und wird als reine Limit-Order ins Buch gelegt. Ist sie
+            sofort marktfähig, wird sie normalerweise gefüllt und verschwindet aus
+            den offenen Orders. Bleibt sie hingegen als offene STP LMT-Order mit
+            Status "Submitted" bestehen, ist der Stop ausgelöst, aber das Limit
+            greift nicht – exakt das Sternchen-Szenario.
+            """
+            self.get_open_orders(timeout=timeout)  # aktualisiert _open_orders_info
+
+            stalled: List[StalledStopLimitOrder] = []
+
+            for order_id, info in self._open_orders_info.items():
+                if info.order.orderType != "STP LMT":
+                    continue
+                if info.status != "Submitted":
+                    continue
+
+                stalled.append(
+                    StalledStopLimitOrder(
+                        orderId=order_id,
+                        symbol=info.contract.symbol,
+                        action=info.order.action.upper(),
+                        quantity=int(info.order.totalQuantity),
+                    )
+                )
+
+            return stalled
