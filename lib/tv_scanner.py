@@ -48,7 +48,7 @@ class TV_Scanner:
             ) \
             .where(*conditions) \
             .order_by('Perf.Y', ascending=False) \
-            .limit(100)
+            .limit(length)
         
         _, scanner_data = q.get_scanner_data()
         
@@ -61,24 +61,16 @@ class TV_Scanner:
         # print(",".join(scanner_data.columns))
         pos_list = []
         for _, row in scanner_data.iterrows():
-            if len(pos_list) >= length:
-                break
-            else:
-                symbol = row['symbol']
-                exchange = row['exchange']
-                price = self.safe_float(row['price'])
-                lead1 = self.safe_float(row['Ichimoku.Lead1'])
-                lead2 = self.safe_float(row['Ichimoku.Lead2'])
-                if price > max(lead1, lead2):
-                    pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
-                                          flag_is_long=True, lead1=lead1, lead2=lead2)
-                    pos_list.append(pos)
-                    # print(",".join(str(v) for v in row.values))
-                elif price < min(lead1, lead2):
-                    pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
-                                          flag_is_long=False, lead1=lead1, lead2=lead2)
-                    pos_list.append(pos)
-                    # print(",".join(str(v) for v in row.values))
+            symbol = row['symbol']
+            exchange = row['exchange']
+            price = self.safe_float(row['price'])
+            lead1 = self.safe_float(row['Ichimoku.Lead1'])
+            lead2 = self.safe_float(row['Ichimoku.Lead2'])
+            flag_is_long = True if price > max(lead1, lead2) else False if price < min(lead1, lead2) else None
+            pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
+                                    flag_is_long=flag_is_long, lead1=lead1, lead2=lead2)
+            pos_list.append(pos)
+            # print(",".join(str(v) for v in row.values))
 
         return pos_list
 

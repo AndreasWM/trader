@@ -433,6 +433,20 @@ class MarketOrder(EClient, EWrapper):
             order_cancel = OrderCancel()  # Optionale Cancel-Parameter hier setzen
             self.cancelOrder(order_id, order_cancel)
             self.sleep(0.1)  # Kleine Pause zwischen Cancels
+    
+    def all_order_ids(self) -> List[int]:
+        """Gibt alle offenen Orders für ein bestimmtes Symbol zurück."""
+        return [order_id for order_id, contract in self._open_orders.items()]
+
+    def cancel_all_orders(self):
+        """Cancelt alle offenen Orders"""
+        orders_to_cancel = self.all_order_ids()
+        
+        for order_id in orders_to_cancel:
+            print(f"[IB] Canceling Order {order_id}")
+            order_cancel = OrderCancel()  # Optionale Cancel-Parameter hier setzen
+            self.cancelOrder(order_id, order_cancel)
+            self.sleep(0.1)  # Kleine Pause zwischen Cancels
 
 class LimitOrder(MarketOrder):
     def __init__(self, auto_close: bool = False, idle_shutdown_secs: float = 2.0, on_filled: Optional[Callable] = None):
