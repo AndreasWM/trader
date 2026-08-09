@@ -15,7 +15,6 @@ LEVERAGE = 2.0
 MIN_MARKET_CAP = 50_000_000_000
 MIN_DIFF_PERCENT = 1.0
 NUMBER_OF_STOCKS = 50
-NUMBER_OF_STOCKS_REDUCED = 50
 SPREAD = 0.005
 CAPITAL_RESERVE = 0.0
 
@@ -71,7 +70,7 @@ def buy(limit_trader: LimitOrder):
     invest_symbols = [p.symbol for p in selected_positons
                             if p.symbol not in [symbol for symbol in stock_symbols]]
     cnt_stocks = len(stock_symbols)
-    cnt_new_stocks = max(NUMBER_OF_STOCKS_REDUCED - cnt_stocks, 0)
+    cnt_new_stocks = max(NUMBER_OF_STOCKS - cnt_stocks, 0)
     invest_symbols = invest_symbols[:cnt_new_stocks]
     invest_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in selected_positons}
     for symbol in invest_symbols:
