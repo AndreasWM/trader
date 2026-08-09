@@ -18,7 +18,7 @@ class TV_Scanner:
         return Column("exchange") != "INVALID"
 
     def query_us(self, tickers_to_exclude: list[str], market_cap: int,
-                           length: int, capital_per_stock: float, leverage: float) -> list[ScannerPosition]:
+                           length: int, capital_per_stock: float, leverage: float, flag_init: bool = True) -> list[ScannerPosition]:
         cond_limit_size = Column('close') < capital_per_stock
         cond_stocktype = Column('type').isin(['stock','dr'])
         cond_subtype = Column('subtype') != 'preferred'
@@ -41,7 +41,7 @@ class TV_Scanner:
                 'exchange',
                 'type',
                 'subtype',
-                'Perf.YTD',
+                'Perf.Y',
                 'Ichimoku.Lead1',
                 'Ichimoku.Lead2',
                 'market_cap_basic',
@@ -67,10 +67,11 @@ class TV_Scanner:
             lead1 = self.safe_float(row['Ichimoku.Lead1'])
             lead2 = self.safe_float(row['Ichimoku.Lead2'])
             flag_is_long = True if price > max(lead1, lead2) else False if price < min(lead1, lead2) else None
-            pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
-                                    flag_is_long=flag_is_long, lead1=lead1, lead2=lead2)
-            pos_list.append(pos)
-            # print(",".join(str(v) for v in row.values))
+            if (flag_is_long is None) != flag_init:
+                pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
+                                        flag_is_long=flag_is_long, lead1=lead1, lead2=lead2)
+                pos_list.append(pos)
+                # print(",".join(str(v) for v in row.values))
 
         return pos_list
 
