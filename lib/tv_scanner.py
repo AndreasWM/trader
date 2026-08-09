@@ -75,7 +75,7 @@ class TV_Scanner:
 
         return pos_list
 
-    def scan_list(self, stock_list: list[str]) -> pd.DataFrame:
+    def scan_list(self, stock_list: list[str], leverage: float|None = None) -> list[ScannerPosition]:
         print(f"📡 Scanne {len(stock_list)} Aktien bei TradingView...")
         
         if stock_list is None:
@@ -118,22 +118,27 @@ class TV_Scanner:
         
             if not all_data:
                 print("⚠️  Keine Daten gefunden")
-                return pd.DataFrame()
+                return []
             else:
                 scanner_data = pd.concat(all_data, ignore_index=True)
-                
+
                 scanner_data = scanner_data.drop(columns=['ticker'], errors='ignore')
                 scanner_data = scanner_data.rename(columns={
                     "name": "symbol",
-                    "market_cap_basic": "market_cap",
                     "close": "price",
-                    "premarket_close": "premarket_price",
-                    "high|1": "high_1",
-                    "low|1": "low_1",
-                    "Perf.YTD": "perf_ytd",
-                    "Ichimoku.Lead1": "lead1",
-                    "Ichimoku.Lead2": "lead2",
                 })
                 
-                print(f"✅ Insgesamt {len(scanner_data)} Aktien gescannt")
-                return scanner_data
+                # print(",".join(scanner_data.columns))
+                pos_list = []
+                for _, row in scanner_data.iterrows():
+                    symbol = row['symbol']
+                    exchange = row['exchange']
+                    price = self.safe_float(row['price'])
+                    lead1 = self.safe_float(row['Ichimoku.Lead1'])
+                    lead2 = self.safe_float(row['Ichimoku.Lead2'])
+                    pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
+                                            flag_is_long=None, lead1=lead1, lead2=lead2)
+                    pos_list.append(pos)
+                    # print(",".join(str(v) for v in row.values))
+
+                return pos_list
