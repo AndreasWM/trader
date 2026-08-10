@@ -32,30 +32,30 @@ def enqueue_stop_limit_order(limit_trader: LimitOrder, scanner_pos: ScannerPosit
         quantity = round(capital_per_stock * scanner_pos.leverage / scanner_pos.price)
 
         action = "BUY"
-        stop_price = max(scanner_pos.lead1, scanner_pos.lead2)
-        if stop_price / scanner_pos.price > (1 + MIN_DIFF_PERCENT/100):
-            spread_factor = 1 + SPREAD
-            limit_price = stop_price * spread_factor
-            limit_trader.enqueue_limit_order_close_position(
-                symbol=ib_symbol,
-                qty=int(quantity),
-                action=action,
-                limit_price=round(limit_price, 2),
-                stop_price=round(stop_price, 2)
-            )
+        next_stop = scanner_pos.price * (1 + MIN_DIFF_PERCENT/100)
+        stop_price = max(next_stop, max(scanner_pos.lead1, scanner_pos.lead2))
+        spread_factor = 1 + SPREAD
+        limit_price = stop_price * spread_factor
+        limit_trader.enqueue_limit_order(
+            symbol=ib_symbol,
+            qty=int(quantity),
+            action=action,
+            limit_price=round(limit_price, 2),
+            stop_price=round(stop_price, 2)
+        )
 
         action = "SELL"
-        stop_price = min(scanner_pos.lead1, scanner_pos.lead2)
-        if stop_price / scanner_pos.price < (1 - MIN_DIFF_PERCENT/100):
-            spread_factor = 1 - SPREAD
-            limit_price = stop_price * spread_factor
-            limit_trader.enqueue_limit_order_close_position(
-                symbol=ib_symbol,
-                qty=int(quantity),
-                action=action,
-                limit_price=round(limit_price, 2),
-                stop_price=round(stop_price, 2)
-            )
+        next_stop = scanner_pos.price * (1 - MIN_DIFF_PERCENT/100)
+        stop_price = min(next_stop, min(scanner_pos.lead1, scanner_pos.lead2))
+        spread_factor = 1 - SPREAD
+        limit_price = stop_price * spread_factor
+        limit_trader.enqueue_limit_order(
+            symbol=ib_symbol,
+            qty=int(quantity),
+            action=action,
+            limit_price=round(limit_price, 2),
+            stop_price=round(stop_price, 2)
+        )
 
 def buy(limit_trader: LimitOrder):
     unwanted_tickers = util.read_symbols(util.get_latest_do_not_trade_file())
@@ -112,7 +112,7 @@ def hedge(limit_trader: LimitOrder):
             short_pos += 1
 
         quantity = abs(pos.position)
-        limit_trader.enqueue_limit_order_close_position(
+        limit_trader.enqueue_limit_order(
             symbol=ib_symbol,
             qty=int(quantity),
             action=action,

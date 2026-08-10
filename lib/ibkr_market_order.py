@@ -527,20 +527,6 @@ class LimitOrder(MarketOrder):
         
         return self._open_orders.copy()
 
-    def enqueue_limit_order_close_position(self, symbol: str, qty: int, action: str, limit_price: float, stop_price: float | None = None):
-        """
-        Schließt eine Position: Cancelt zuerst alle Orders für das Symbol, 
-        dann erstellt es eine neue Stop-Limit-Order.
-        """
-        # Erst alle bestehenden Orders für dieses Symbol canceln
-        self.cancel_orders_for_symbol(symbol)
-        
-        # Kurze Pause, damit Cancels durchlaufen
-        self.sleep(0.3)
-        
-        # Dann neue Order erstellen
-        self.enqueue_limit_order(symbol, qty, action, limit_price, stop_price)
-
     # -----------------------------
     # Order-/Contract-Builder
     # -----------------------------
