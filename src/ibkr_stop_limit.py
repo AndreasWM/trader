@@ -12,6 +12,7 @@ from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
 LEVERAGE = 2.0
+MIN_DIFF_PERCENT = 1.0
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 50
 SPREAD = 0.005
@@ -107,15 +108,16 @@ def hedge(limit_trader: LimitOrder):
             short_pos += 1
 
         quantity = abs(pos.position)
-        limit_trader.enqueue_limit_order(
-            symbol=ib_symbol,
-            qty=int(quantity),
-            action=action,
-            limit_price=round(limit_price, 2),
-            stop_price=round(stop_price, 2)
-        )
-        print(f"✅ {scanner_symbol}: {action} {int(quantity)} Stk. | "
-            f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
+        if abs(price - stop_price) / price > MIN_DIFF_PERCENT/100:
+            limit_trader.enqueue_limit_order(
+                symbol=ib_symbol,
+                qty=int(quantity),
+                action=action,
+                limit_price=round(limit_price, 2),
+                stop_price=round(stop_price, 2)
+            )
+            print(f"✅ {scanner_symbol}: {action} {int(quantity)} Stk. | "
+                f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
             
     print(f"Long-Aktien: {long_pos}, Short-Aktien: {short_pos}")
 
