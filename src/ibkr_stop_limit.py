@@ -13,7 +13,6 @@ from lib.yfinance_ticker import YfinanceTicker
 
 LEVERAGE = 2.0
 MIN_MARKET_CAP = 50_000_000_000
-MIN_DIFF_PERCENT = 1.0
 NUMBER_OF_STOCKS = 50
 SPREAD = 0.005
 CAPITAL_RESERVE = 0.0
@@ -32,8 +31,7 @@ def enqueue_stop_limit_order(limit_trader: LimitOrder, scanner_pos: ScannerPosit
         quantity = round(capital_per_stock * scanner_pos.leverage / scanner_pos.price)
 
         action = "BUY"
-        next_stop = scanner_pos.price * (1 + MIN_DIFF_PERCENT/100)
-        stop_price = max(next_stop, max(scanner_pos.lead1, scanner_pos.lead2))
+        stop_price = max(scanner_pos.lead1, scanner_pos.lead2)
         spread_factor = 1 + SPREAD
         limit_price = stop_price * spread_factor
         limit_trader.enqueue_limit_order(
@@ -45,8 +43,7 @@ def enqueue_stop_limit_order(limit_trader: LimitOrder, scanner_pos: ScannerPosit
         )
 
         action = "SELL"
-        next_stop = scanner_pos.price * (1 - MIN_DIFF_PERCENT/100)
-        stop_price = min(next_stop, min(scanner_pos.lead1, scanner_pos.lead2))
+        stop_price = min(scanner_pos.lead1, scanner_pos.lead2)
         spread_factor = 1 - SPREAD
         limit_price = stop_price * spread_factor
         limit_trader.enqueue_limit_order(
@@ -99,14 +96,12 @@ def hedge(limit_trader: LimitOrder):
             
         is_long = pos.position > 0
         if is_long:
-            next_stop = price * (1 - MIN_DIFF_PERCENT/100)
-            stop_price = min(next_stop, max(lead1, lead2))
+            stop_price = max(lead1, lead2)
             limit_price = stop_price * (1 - SPREAD)
             action = "SELL"
             long_pos += 1
         else:
-            next_stop = price * (1 + MIN_DIFF_PERCENT/100)
-            stop_price = max(next_stop, min(lead1, lead2))
+            stop_price = min(lead1, lead2)
             limit_price = stop_price * (1 + SPREAD)
             action = "BUY"
             short_pos += 1
