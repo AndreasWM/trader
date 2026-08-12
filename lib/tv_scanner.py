@@ -67,11 +67,10 @@ class TV_Scanner:
             lead1 = self.safe_float(row['Ichimoku.Lead1'])
             lead2 = self.safe_float(row['Ichimoku.Lead2'])
             flag_is_long = True if price > max(lead1, lead2) else False if price < min(lead1, lead2) else None
-            if (flag_is_long is None) != flag_init:
-                pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
-                                        flag_is_long=flag_is_long, lead1=lead1, lead2=lead2)
-                pos_list.append(pos)
-                # print(",".join(str(v) for v in row.values))
+            pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
+                                    flag_is_long=flag_is_long, lead1=lead1, lead2=lead2)
+            pos_list.append(pos)
+            # print(",".join(str(v) for v in row.values))
 
         return pos_list
 
@@ -136,8 +135,9 @@ class TV_Scanner:
                     price = self.safe_float(row['price'])
                     lead1 = self.safe_float(row['Ichimoku.Lead1'])
                     lead2 = self.safe_float(row['Ichimoku.Lead2'])
+                    flag_is_long = True if price > max(lead1, lead2) else False if price < min(lead1, lead2) else None
                     pos = ScannerPosition(symbol=symbol, exchange=exchange, price=price, leverage=leverage,
-                                            flag_is_long=None, lead1=lead1, lead2=lead2)
+                                            flag_is_long=flag_is_long, lead1=lead1, lead2=lead2)
                     pos_list.append(pos)
                     # print(",".join(str(v) for v in row.values))
 

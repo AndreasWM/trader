@@ -107,7 +107,7 @@ class StockUtil:
     def calc_qty(self, ibkr_pos: IBKRPosition|None, scanner_pos: ScannerPosition, capital_per_stock: float) -> int:
         position = ibkr_pos.position if ibkr_pos is not None else 0
         quantity = round(capital_per_stock * scanner_pos.leverage / scanner_pos.price)
-        quantity_with_sign = quantity if scanner_pos.flag_is_long else -quantity
+        quantity_with_sign = 0 if scanner_pos.flag_is_long is None else quantity if scanner_pos.flag_is_long else -quantity
         qty = quantity_with_sign - position
         return qty
 

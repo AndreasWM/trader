@@ -18,7 +18,7 @@ CAPITAL_RESERVE = 0
 LEVERAGE = 2.0
 LEVERAGE_ADAPT = False
 MIN_MARKET_CAP = 50_000_000_000
-NUMBER_OF_STOCKS = 40
+NUMBER_OF_STOCKS = 50
 
 class StockList:
     def __init__(self, ibkr: MarketOrder):
@@ -64,7 +64,7 @@ class StockList:
         stock_symbols = [p.symbol for p in self._ibkr_positions]
         self._close_symbols = [symbol for symbol in stock_symbols if symbol not in [s.symbol for s in self._scanner_positions]]
         self._invest_symbols = [p.symbol for p in self._scanner_positions
-                                if self._leverage_adapt or p.symbol not in [symbol for symbol in stock_symbols]]
+                                if p.flag_is_long is not None and (self._leverage_adapt or p.symbol not in [symbol for symbol in stock_symbols])]
 
     def _set_lookups(self):
         self.stock_lookup: dict[str, IBKRPosition] = {p.symbol: p for p in self._ibkr_positions}
