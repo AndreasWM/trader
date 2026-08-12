@@ -60,7 +60,7 @@ def buy(limit_trader: LimitOrder):
     capital_per_stock = calculate_capital_per_stock(market_trader=limit_trader)
     scanner_positions = sc.query_us(tickers_to_exclude=unwanted_tickers, market_cap=MIN_MARKET_CAP,
                                     length=NUMBER_OF_STOCKS, capital_per_stock=capital_per_stock, leverage=LEVERAGE, flag_init=False)
-    extra_symbols = ["AXTI"]
+    extra_symbols = [""]
     extra_positions = sc.scan_list(stock_list=extra_symbols, leverage=LEVERAGE)
     selected_positons = extra_positions + scanner_positions
     ibkr_positions: list[IBKRPosition] = util.ibkr_positions(trader=limit_trader)
