@@ -90,19 +90,23 @@ def create_cover_order(limit_trader: LimitOrder, ibkr_pos: IBKRPosition, scanner
         print(f"✅ {scanner_pos.symbol}: {action} {int(quantity)} Stk. | "
             f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
 
-def hedge(limit_trader: LimitOrder, ibkr_positions: list[IBKRPosition]):
+def hedge(limit_trader: LimitOrder, ibkr_positions: list[IBKRPosition], scanner_positions: list[ScannerPosition]):
     position_symbols = [p.symbol.replace(' ', '.') for p in ibkr_positions]
     hedge_positions = sc.scan_list(stock_list=position_symbols)
+    scanner_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in scanner_positions}
     hedge_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in hedge_positions}
 
     for ibkr_pos in ibkr_positions:
-        hedge_pos = hedge_lookup.get(ibkr_pos.symbol)
-        if hedge_pos is None:
-            print(f"  ⚠️  Fehler: {ibkr_pos.symbol} ist im Depot, aber der Kurs ist auf der Ichimoku-Wolke.")
-        elif ibkr_pos.position > 0:
-            create_sell_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
-        else:
-            create_cover_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
+        scanner_pos = scanner_lookup.get(ibkr_pos.symbol)
+        if scanner_pos is None:
+            hedge_pos = hedge_lookup.get(ibkr_pos.symbol)
+            if hedge_pos is not None:
+                if hedge_pos.flag_is_long is None:
+                    print(f"  ⚠️  Fehler: {ibkr_pos.symbol} ist im Depot, aber der Kurs ist auf der Ichimoku-Wolke.")
+                elif ibkr_pos.position > 0:
+                    create_sell_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
+                else:
+                    create_cover_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
 
 def trade(limit_trader: LimitOrder,
           ibkr_positions: list[IBKRPosition], scanner_positions: list[ScannerPosition],
@@ -111,9 +115,7 @@ def trade(limit_trader: LimitOrder,
     for scanner_pos in scanner_positions:
         ibkr_pos = ibkr_lookup.get(scanner_pos.symbol)
         if ibkr_pos is not None:
-            if scanner_pos.flag_is_long is None:
-                print(f"  ⚠️  Fehler: {ibkr_pos.symbol} ist im Depot, aber der Kurs ist auf der Ichimoku-Wolke.")
-            elif scanner_pos.flag_is_long:
+            if ibkr_pos.position > 0:
                 create_sell_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=scanner_pos)
                 create_short_order(limit_trader=limit_trader, scanner_pos=scanner_pos, capital_per_stock=capital_per_stock)
             else:
@@ -134,7 +136,7 @@ def trade_and_hedge(limit_trader: LimitOrder):
     ibkr_positions: list[IBKRPosition] = util.ibkr_positions(trader=limit_trader)
     scanner_positions = sc.query_us(tickers_to_exclude=unwanted_tickers, market_cap=MIN_MARKET_CAP,
                                     length=NUMBER_OF_STOCKS, capital_per_stock=capital_per_stock, leverage=LEVERAGE, flag_init=False)
-    # hedge(limit_trader=limit_trader, ibkr_positions=ibkr_positions)
+    hedge(limit_trader=limit_trader, ibkr_positions=ibkr_positions, scanner_positions=scanner_positions)
     trade(limit_trader=limit_trader,
           ibkr_positions=ibkr_positions, scanner_positions=scanner_positions, capital_per_stock=capital_per_stock)
 
