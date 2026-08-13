@@ -11,7 +11,7 @@ from lib.stock_util import StockUtil
 from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
-LEVERAGE = 2.0
+LEVERAGE = 4.0
 MIN_DIFF_PERCENT = 1.0
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 50
@@ -28,7 +28,7 @@ def calculate_capital_per_stock(market_trader: MarketOrder) -> float:
 
 def create_long_order(limit_trader: LimitOrder, scanner_pos: ScannerPosition, capital_per_stock: float):
     if scanner_pos.leverage > 0:
-        quantity = round(capital_per_stock * scanner_pos.leverage / scanner_pos.price)
+        quantity = round(capital_per_stock / scanner_pos.price)
 
         action = "BUY"
         stop_price = max(scanner_pos.lead1, scanner_pos.lead2)
@@ -145,8 +145,8 @@ if __name__ == "__main__":
     limit_trader = LimitOrder()
     util = StockUtil()
     
-    limit_trader.cancel_all_orders()
-    limit_trader.sleep(0.3)
+    # limit_trader.cancel_all_orders()
+    # limit_trader.sleep(0.3)
 
     trade_and_hedge(limit_trader=limit_trader)
 
