@@ -556,6 +556,56 @@ class LimitOrder(MarketOrder):
             o.orderType = "LMT"
         
         return o
+
+    @staticmethod
+    def _make_adaptive_stop_limit_order(
+        action: str,
+        qty: int,
+        limit_price: float,
+        stop_price: float,
+        priority: str = "Normal",
+    ) -> Order:
+        """
+        Erzeugt eine Adaptive Stop-Limit Order.
+
+        Funktionsweise: Wie bei einer normalen STP-LMT-Order löst der Stop-Preis
+        (auxPrice) die Order aus, sobald er erreicht wird. Statt danach als
+        starre Limit-Order im Buch zu liegen, wird die ausgelöste Order über
+        den IB-"Adaptive"-Algo geroutet (algoStrategy="Adaptive"), um die
+        Fill-Wahrscheinlichkeit rund um den Limit-Preis zu erhöhen.
+
+        Erlaubte priority: "Normal" | "Patient" | "Urgent"
+
+        Entspricht dem TWS-Ordertyp "Adaptive STP LMT (IBALGO)": Sobald der
+        Stop-Preis erreicht wird, routet IB die ausgelöste Order über den
+        Adaptive-Algo mit Ziel limit_price. Funktioniert in der TWS über den
+        Änderungsdialog (erst Order erstellen, dann auf Stop-Limit umstellen
+        und Stop-/Limit-Preise setzen) und lässt sich 1:1 per API abbilden.
+        Bei "blinden" Orders (keine Marktdaten für das Instrument abonniert)
+        zeigt TWS ggf. eine zusätzliche Warnung/Bestätigung an; das ist ein
+        reiner UI-Hinweis und kein Hinweis auf eine ungültige Order.
+
+        WICHTIG: outsideRth wird hier bewusst NICHT gesetzt (bleibt False).
+        Der Adaptive-Algo setzt für sein Routing auf ausreichend Liquidität
+        und funktioniert außerhalb der regulären Handelszeiten (RTH) in der
+        Praxis nicht zuverlässig – analog zu _make_adaptive_market_order,
+        die outsideRth ebenfalls nicht setzt.
+        """
+        if priority not in ("Normal", "Patient", "Urgent"):
+            raise ValueError(f"Ungültige adaptivePriority: {priority}")
+
+        o = Order()
+        o.action = action.upper()           # BUY | SELL
+        o.orderType = "STP LMT"
+        o.totalQuantity = Decimal(qty)
+        o.lmtPrice = float(limit_price)     # Limit-Preis nach Auslösung
+        o.auxPrice = float(stop_price)      # Stop-Preis (Trigger)
+        o.tif = "GTC"                       # Good-Til-Canceled
+        # kein outsideRth: Adaptive braucht Liquidität aus dem regulären Handel
+        o.algoStrategy = "Adaptive"
+        o.algoParams = [TagValue("adaptivePriority", priority)]  # type: ignore[assignment]
+
+        return o
     
     def enqueue_limit_order(self, symbol: str, qty: int, action: str,
                                   limit_price: float, stop_price: float | None = None, exchange: str = "SMART", currency: str = "USD"):
@@ -564,6 +614,52 @@ class LimitOrder(MarketOrder):
         """
         contract = self._make_stock_contract(symbol, exchange, currency)
         order = self._make_limit_order(action, qty, limit_price, stop_price)
+        self._order_queue.append((order, contract))
+        self._try_place_next()
+
+    def enqueue_adaptive_stop_limit_order(
+        self,
+        symbol: str,
+        qty: int,
+        action: str,
+        limit_price: float,
+        stop_price: float,
+        priority: str = "Normal",
+        exchange: str = "SMART",
+        currency: str = "USD",
+    ):
+        """
+        Fügt eine Adaptive Stop-Limit Order in die Queue ein.
+
+        Bei BUY: Order löst aus, sobald Kurs >= stop_price; danach Adaptive-
+        Routing mit Ziel limit_price.
+        Bei SELL: Order löst aus, sobald Kurs <= stop_price; danach Adaptive-
+        Routing mit Ziel limit_price.
+        """
+        contract = self._make_stock_contract(symbol, exchange, currency)
+        order = self._make_adaptive_stop_limit_order(action, qty, limit_price, stop_price, priority)
+        self._order_queue.append((order, contract))
+        self._try_place_next()
+
+    def enqueue_adaptive_stop_limit_close_order(
+        self,
+        symbol: str,
+        qty: int,
+        action: str,
+        limit_price: float,
+        stop_price: float,
+        priority: str = "Normal",
+    ):
+        """
+        Cancelt zunächst alle offenen Orders für das Symbol und fügt danach
+        eine Adaptive Stop-Limit Order in die Queue ein (analog zu
+        enqueue_adaptive_close_order für Market-Orders).
+        """
+        self.cancel_orders_for_symbol(symbol)
+        self.sleep(0.3)
+
+        contract = self._make_stock_contract(symbol)
+        order = self._make_adaptive_stop_limit_order(action, qty, limit_price, stop_price, priority)
         self._order_queue.append((order, contract))
         self._try_place_next()
 
