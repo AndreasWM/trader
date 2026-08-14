@@ -12,6 +12,7 @@ from lib.tv_scanner import TV_Scanner
 from lib.yfinance_ticker import YfinanceTicker
 
 LEVERAGE = 4.0
+LOGGING = False
 MIN_DIFF_PERCENT = 1.0
 MIN_MARKET_CAP = 50_000_000_000
 NUMBER_OF_STOCKS = 50
@@ -41,6 +42,9 @@ def create_long_order(limit_trader: LimitOrder, scanner_pos: ScannerPosition, ca
             limit_price=round(limit_price, 2),
             stop_price=round(stop_price, 2)
         )
+        if LOGGING:
+            print(f"✅ {scanner_pos.symbol}: {action} {int(quantity)} Stk. | "
+                f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
 
 def create_sell_order(limit_trader: LimitOrder, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition):
     stop_price = max(scanner_pos.lead1, scanner_pos.lead2)
@@ -55,8 +59,9 @@ def create_sell_order(limit_trader: LimitOrder, ibkr_pos: IBKRPosition, scanner_
             limit_price=round(limit_price, 2),
             stop_price=round(stop_price, 2)
         )
-        print(f"✅ {scanner_pos.symbol}: {action} {int(quantity)} Stk. | "
-            f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
+        if LOGGING:
+            print(f"✅ {scanner_pos.symbol}: {action} {int(quantity)} Stk. | "
+                f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
 
 def create_short_order(limit_trader: LimitOrder, scanner_pos: ScannerPosition, capital_per_stock: float):
     if scanner_pos.leverage > 0:
@@ -73,6 +78,9 @@ def create_short_order(limit_trader: LimitOrder, scanner_pos: ScannerPosition, c
             limit_price=round(limit_price, 2),
             stop_price=round(stop_price, 2)
         )
+        if LOGGING:
+            print(f"✅ {scanner_pos.symbol}: {action} {int(quantity)} Stk. | "
+                f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
 
 def create_cover_order(limit_trader: LimitOrder, ibkr_pos: IBKRPosition, scanner_pos: ScannerPosition):
     stop_price = min(scanner_pos.lead1, scanner_pos.lead2)
@@ -87,26 +95,9 @@ def create_cover_order(limit_trader: LimitOrder, ibkr_pos: IBKRPosition, scanner
             limit_price=round(limit_price, 2),
             stop_price=round(stop_price, 2)
         )
-        print(f"✅ {scanner_pos.symbol}: {action} {int(quantity)} Stk. | "
-            f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
-
-def hedge(limit_trader: LimitOrder, ibkr_positions: list[IBKRPosition], scanner_positions: list[ScannerPosition]):
-    position_symbols = [p.symbol.replace(' ', '.') for p in ibkr_positions]
-    hedge_positions = sc.scan_list(stock_list=position_symbols)
-    scanner_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in scanner_positions}
-    hedge_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in hedge_positions}
-
-    for ibkr_pos in ibkr_positions:
-        scanner_pos = scanner_lookup.get(ibkr_pos.symbol)
-        if scanner_pos is None:
-            hedge_pos = hedge_lookup.get(ibkr_pos.symbol)
-            if hedge_pos is not None:
-                if hedge_pos.flag_is_long is None:
-                    print(f"  ⚠️  Fehler: {ibkr_pos.symbol} ist im Depot, aber der Kurs ist auf der Ichimoku-Wolke.")
-                elif ibkr_pos.position > 0:
-                    create_sell_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
-                else:
-                    create_cover_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
+        if LOGGING:
+            print(f"✅ {scanner_pos.symbol}: {action} {int(quantity)} Stk. | "
+                f"Stop={stop_price:.2f} | Limit={limit_price:.2f}")
 
 def trade(limit_trader: LimitOrder,
           ibkr_positions: list[IBKRPosition], scanner_positions: list[ScannerPosition],
@@ -130,25 +121,41 @@ def trade(limit_trader: LimitOrder,
             else:
                 create_long_order(limit_trader=limit_trader, scanner_pos=scanner_pos, capital_per_stock=capital_per_stock)
 
-def trade_and_hedge(limit_trader: LimitOrder):
+def trend_hold(limit_trader: LimitOrder, ibkr_positions: list[IBKRPosition], scanner_positions: list[ScannerPosition]):
+    position_symbols = [p.symbol.replace(' ', '.') for p in ibkr_positions]
+    hedge_positions = sc.scan_list(stock_list=position_symbols)
+    scanner_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in scanner_positions}
+    hedge_lookup: dict[str, ScannerPosition] = {p.symbol: p for p in hedge_positions}
+
+    for ibkr_pos in ibkr_positions:
+        scanner_pos = scanner_lookup.get(ibkr_pos.symbol)
+        if scanner_pos is None:
+            hedge_pos = hedge_lookup.get(ibkr_pos.symbol)
+            if hedge_pos is not None:
+                if ibkr_pos.position > 0:
+                    create_sell_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
+                else:
+                    create_cover_order(limit_trader=limit_trader, ibkr_pos=ibkr_pos, scanner_pos=hedge_pos)
+
+def trade_and_hold(limit_trader: LimitOrder):
     unwanted_tickers = util.read_symbols(util.get_latest_do_not_trade_file())
     capital_per_stock = calculate_capital_per_stock(market_trader=limit_trader)
     ibkr_positions: list[IBKRPosition] = util.ibkr_positions(trader=limit_trader)
     scanner_positions = sc.query_us(tickers_to_exclude=unwanted_tickers, market_cap=MIN_MARKET_CAP,
                                     length=NUMBER_OF_STOCKS, capital_per_stock=capital_per_stock, leverage=LEVERAGE, flag_init=False)
-    hedge(limit_trader=limit_trader, ibkr_positions=ibkr_positions, scanner_positions=scanner_positions)
     trade(limit_trader=limit_trader,
           ibkr_positions=ibkr_positions, scanner_positions=scanner_positions, capital_per_stock=capital_per_stock)
+    trend_hold(limit_trader=limit_trader, ibkr_positions=ibkr_positions, scanner_positions=scanner_positions)
 
 if __name__ == "__main__":
     sc = TV_Scanner()
     limit_trader = LimitOrder()
     util = StockUtil()
     
-    # limit_trader.cancel_all_orders()
-    # limit_trader.sleep(0.3)
+    limit_trader.cancel_all_orders()
+    limit_trader.sleep(0.3)
 
-    trade_and_hedge(limit_trader=limit_trader)
+    trade_and_hold(limit_trader=limit_trader)
 
     limit_trader.wait_until_sent(timeout=120)
     limit_trader.close()
