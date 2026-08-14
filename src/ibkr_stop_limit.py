@@ -117,8 +117,10 @@ def trade(limit_trader: LimitOrder,
                 create_long_order(limit_trader=limit_trader, scanner_pos=scanner_pos, capital_per_stock=capital_per_stock)
                 create_short_order(limit_trader=limit_trader, scanner_pos=scanner_pos, capital_per_stock=capital_per_stock)
             elif scanner_pos.flag_is_long:
+                print(f"  ⚠️  Fehler: {scanner_pos.symbol} ist nicht im Depot, sollte aber long gehandelt werden.")
                 create_short_order(limit_trader=limit_trader, scanner_pos=scanner_pos, capital_per_stock=capital_per_stock)
             else:
+                print(f"  ⚠️  Fehler: {scanner_pos.symbol} ist nicht im Depot, sollte aber short gehandelt werden.")
                 create_long_order(limit_trader=limit_trader, scanner_pos=scanner_pos, capital_per_stock=capital_per_stock)
 
 def trend_hold(limit_trader: LimitOrder, ibkr_positions: list[IBKRPosition], scanner_positions: list[ScannerPosition]):
