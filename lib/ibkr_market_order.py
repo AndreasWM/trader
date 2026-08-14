@@ -14,6 +14,7 @@ from ibapi.order_cancel import OrderCancel
 from ibapi.common import OrderId
 from ibapi.tag_value import TagValue
 
+LOGGING = False
 @dataclass
 class IBKROrder:
     symbol: str
@@ -142,10 +143,11 @@ class MarketOrder(EClient, EWrapper):
             return
 
         # Sonst normaler Fehler
-        print(f"[IB][ERROR] reqId={reqId} code={errorCode} msg={msg}")
+        if LOGGING or errorCode != 202:
+            print(f"[IB][ERROR] reqId={reqId} code={errorCode} msg={msg}")
         if advancedOrderRejectJson:
             print(f"[IB][ERROR-ADV] {advancedOrderRejectJson}")
-        if errorTime:
+        if LOGGING and errorTime:
             print(f"[IB][ERROR-TIME] at {errorTime}")
 
         # Falls Order-Kontext offen → abbrechen
@@ -270,11 +272,13 @@ class MarketOrder(EClient, EWrapper):
         self._current_order_id = self._next_valid_id
         self._next_valid_id += 1
 
-        print(f"[IB] -> Sende Order {self._current_order_id}: {order.action} {order.totalQuantity} {contract.symbol} (Adaptive={order.algoStrategy})")
+        if LOGGING:
+            print(f"[IB] -> Sende Order {self._current_order_id}: {order.action} {order.totalQuantity} {contract.symbol} (Adaptive={order.algoStrategy})")
         self.placeOrder(self._current_order_id, contract, order)
 
     def _advance_to_next(self):
-        print(f"[IB] <- Order {self._current_order_id} akzeptiert/gefüllt, fahre fort.")
+        if LOGGING:
+            print(f"[IB] <- Order {self._current_order_id} akzeptiert/gefüllt, fahre fort.")
         self._current_order_id = None
         self.sleep(0.3)  # kleine Atempause
         self._try_place_next()
@@ -438,7 +442,8 @@ class MarketOrder(EClient, EWrapper):
         orders_to_cancel = self.all_order_ids_for_symbol(symbol)
         
         for order_id in orders_to_cancel:
-            print(f"[IB] Canceling Order {order_id} for {symbol}")
+            if LOGGING:
+                print(f"[IB] Canceling Order {order_id} for {symbol}")
             order_cancel = OrderCancel()  # Optionale Cancel-Parameter hier setzen
             self.cancelOrder(order_id, order_cancel)
             self.sleep(0.1)  # Kleine Pause zwischen Cancels
@@ -452,7 +457,8 @@ class MarketOrder(EClient, EWrapper):
         orders_to_cancel = self.all_order_ids()
         
         for order_id in orders_to_cancel:
-            print(f"[IB] Canceling Order {order_id}")
+            if LOGGING:
+                print(f"[IB] Canceling Order {order_id}")
             order_cancel = OrderCancel()  # Optionale Cancel-Parameter hier setzen
             self.cancelOrder(order_id, order_cancel)
             self.sleep(0.1)  # Kleine Pause zwischen Cancels
@@ -496,7 +502,8 @@ class LimitOrder(MarketOrder):
         whyHeld: str,
         mktCapPrice: float,
     ):
-        print(f"[IB][LIMIT] orderStatus id={orderId} status={status} filled={filled} remaining={remaining} avgFill={avgFillPrice}")
+        if LOGGING:
+            print(f"[IB][LIMIT] orderStatus id={orderId} status={status} filled={filled} remaining={remaining} avgFill={avgFillPrice}")
 
         # Order aus Open-Orders entfernen wenn gefüllt oder gecancelt
         if status in ("Filled", "Cancelled"):
