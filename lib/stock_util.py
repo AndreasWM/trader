@@ -6,6 +6,7 @@ import subprocess
 from typing import cast
 from pathlib import Path
 
+import pandas as pd
 import pandas_market_calendars as mcal
 from datetime import datetime
 import pytz
@@ -16,6 +17,7 @@ if project_root not in sys.path:
 
 from lib.ibkr_market_order import IBKROrder, MarketOrder
 from lib.position import IBKRPosition, ScannerPosition
+from lib.tv_scanner import TV_Scanner
 
 HOME_DIR_LINUX = '/home/andreas/'
 HOME_DIR_WINDOWS = '/mnt/c/Users/moell/'
@@ -36,7 +38,29 @@ class StockUtil:
         
         # 2. Fallback: Wenn echter Ubuntu-PC oder WSL-Erkennung fehlschlägt
         return "127.0.0.1"
+    
+    def get_exchanges(self, symbols: list[str]) -> list[dict]:
+        sc = TV_Scanner()
+        results = sc.scan_list(stock_list=symbols)
+        if isinstance(results, pd.DataFrame) and not results.empty:
+            return results.loc[:, ['symbol', 'exchange']].to_dict('records')
+        else:
+            return []
         
+    def create_watchlist_file(self, symbols: list[str], filename: str = 'watchlist.txt'):
+        watchlist_lines = []
+        if symbols:
+            pairs = self.get_exchanges(symbols)
+            
+            # TradingView Format: EXCHANGE:SYMBOL
+            watchlist_lines = [f"{pair['exchange']}:{pair['symbol']}" for pair in pairs]
+            
+            # In Datei schreiben
+            with open(filename, 'w') as f:
+                f.write('\n'.join(watchlist_lines))
+            
+        return watchlist_lines
+
     def create_text_file(self, text: str, filename: str | Path):
         with open(filename, 'w') as f:
             f.write(text)
