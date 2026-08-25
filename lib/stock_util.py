@@ -98,8 +98,8 @@ class StockUtil:
     def get_latest_do_not_trade_file(self) -> str:
         return self.get_latest_file(dir=self.get_data_dir(), pattern='DoNotTrade')
     
-    def get_latest_watchlist_file(self) -> str:
-        return self.get_latest_file(dir=self.get_data_dir(), pattern='Watchlist')
+    def get_latest_watchlist_file(self, pattern: str = 'Watchlist') -> str:
+        return self.get_latest_file(dir=self.get_data_dir(), pattern=pattern)
     
     def get_output_file(self, filename: str) -> str:
         return self.get_data_dir() + filename
